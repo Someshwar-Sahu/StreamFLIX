@@ -1,0 +1,11 @@
+{
+  "name": "streamflix",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Learning-scope streaming platform (Web + Mobile + Desktop) built on FastAPI",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "dev:backend": "docker compose -f infra/docker-compose.yml up --build"
+  }
+}

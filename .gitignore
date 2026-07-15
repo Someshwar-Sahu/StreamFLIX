@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.next/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.local
+media_storage/*
+!media_storage/.gitkeep
+.vscode/
+.idea/
