@@ -22,19 +22,20 @@
 - [x] Docs initialized: ARCHITECTURE.md, LEARNING_ROADMAP.md, PROJECT_STATUS.md
 
 ## Pending work (next up — Phase 1 candidates)
-- [ ] `git init` + first commit
-- [ ] Verify ffmpeg installed locally, generate one test HLS file, confirm plays in VLC
+- [x] `git init` + first commit
+- [x] Verify ffmpeg installed locally, generate one test HLS file, confirm plays in VLC
       (isolated test — before any backend/server involvement, per prior failed attempt)
-- [ ] `docker-compose.yml` for Postgres + Redis (local dev)
-- [ ] FastAPI skeleton: `app/main.py`, `core/config.py`, DB connection
-- [ ] Alembic init + first migration (users, content, content_variants, watch_history tables)
-- [ ] Basic `/auth/register` + `/auth/login` endpoints
+- [x] `docker-compose.yml` for Postgres + Redis (local dev)
+- [x] FastAPI skeleton: `app/main.py`, `core/config.py`, DB connection
+- [x] Alembic init + first migration (users, content, content_variants, watch_history tables)
+- [x] Basic `/auth/register` + `/auth/login` endpoints
 
 ## Known issues / risks
 - User previously attempted nginx+ffmpeg+HLS manually (Linux, Docker) — did not work, root cause
   unknown (no logs from that attempt). Mitigation: this build isolates ffmpeg → HLS as its own
   standalone testable step before wiring into FastAPI/Celery, so failures surface with clear
   Python errors instead of silent nginx failures.
+- RESOLVED — ffmpeg HLS generation confirmed working on Windows via Git Bash, VLC playback verified 2026-07-16
 - Windows dev environment — confirmed NOT a blocker for HLS itself (open spec, ffmpeg is
   cross-platform). Only future Apple-specific blocker: testing on real iPhone / App Store
   publishing needs a Mac — deferred, not relevant to current phases (Android + Web + Desktop first).
@@ -49,5 +50,5 @@
 - S3-compatible object storage — local disk dev path is structured to map to it later
 
 ## Next recommended task
-Set up `docker-compose.yml` (Postgres + Redis) and do the isolated ffmpeg→HLS→VLC test
-*before* writing any FastAPI code. This directly addresses the known risk above.
+Install Docker (custom path, per E: drive space constraint), set up `docker-compose.yml`
+for Postgres + Redis, confirm both containers running — before writing any FastAPI code.
