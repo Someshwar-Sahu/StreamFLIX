@@ -9,7 +9,7 @@
 ---
 
 ## Current phase
-**Phase 3: Web frontend — NOT STARTED**
+**Phase 4: Desktop (Electron) — NOT STARTED**
 
 ## Completed work
 
@@ -44,23 +44,37 @@
 - [x] `GET /content` — list/browse catalog
 - [x] `GET /content/{id}` — single content details
 - [x] `GET /content/{id}/status` — poll transcode status
-- [x] HLS files served via `StaticFiles` mount at `/media/{content_id}/master.m3u8` (handles range requests for seeking automatically)
-- [x] **Full pipeline verified end-to-end: upload → transcode → status=ready → catalog list → HTTP stream → VLC playback confirmed working**
+- [x] HLS files served via `StaticFiles` mount at `/media/{content_id}/master.m3u8`
+- [x] Full pipeline verified end-to-end: upload → transcode → status=ready → catalog list → HTTP stream → VLC playback
 
-## Pending work (Phase 3 — next)
-- [ ] React + Vite scaffold in `apps/web`
-- [ ] API client setup (calls FastAPI backend)
-- [ ] Catalog/browse page (calls `GET /content`)
-- [ ] Video player page using `hls.js` (browsers, unlike VLC, need this to parse `.m3u8`)
-- [ ] Upload UI (calls `POST /content`)
-- [ ] Auth pages (register/login, JWT storage)
+### Phase 3 — Web frontend — COMPLETE
+- [x] React + Vite scaffold in `apps/web`, wired into pnpm workspace
+- [x] CORS enabled on backend for `localhost:5173`
+- [x] `api/client.js` — axios instance, auto-attaches JWT via interceptor
+- [x] Catalog page — lists content from `GET /content`
+- [x] Watch page — plays HLS via `hls.js`, verified working in browser
+- [x] `/auth/register` + `/auth/login` wired into backend endpoints
+- [x] Backend: `POST /content` now requires JWT (`get_current_user_id` dependency) — hardcoded
+      `uploaded_by=1` removed, verified 401 without token
+- [x] Upload page — authenticated file upload from browser, verified working
+- [x] Auth state made reactive via React Context (`AuthContext.jsx`) — nav bar updates
+      immediately on login/logout without page refresh (fixed initial bug where it didn't)
+- [x] Full authenticated flow verified: register → login → upload → transcode → appears in
+      catalog as "ready" → plays in browser
+
+## Pending work (Phase 4 — next)
+- [ ] Electron shell setup in `apps/desktop`
+- [ ] Wire Electron to load the existing React web build (minimize duplicate work)
+- [ ] Verify playback works inside Electron (not just browser — Electron's Chromium engine
+      should behave the same, but confirm)
+- [ ] Basic packaging/run scripts for desktop app
 
 ## Known issues / risks
 - RESOLVED — Old unexplained nginx+ffmpeg+HLS failure: root cause dead, ffmpeg HLS generation
   confirmed working standalone (Windows via Git Bash, VLC playback verified 2026-07-16).
 - Windows dev environment confirmed NOT a blocker for HLS itself. Only future Apple-specific
   blocker: testing on real iPhone / App Store publishing needs a Mac — deferred, not relevant
-  to current phases (Android + Web + Desktop first).
+  to current phases.
 - Celery on Windows requires `--pool=solo` flag (default pool doesn't work on Windows).
 - `celery_app.py` needs `include=[...]` explicitly listing task modules, or worker won't
   register tasks defined elsewhere (silent `KeyError` at runtime otherwise).
@@ -68,16 +82,21 @@
   worker vs shell) — fixed by anchoring `media_storage_path` as absolute in `config.py`.
   Rule going forward: always use `settings.media_storage_path`, never relative path strings.
 - Content row `id=1` permanently stuck at `status=processing` — pre-fix test upload, harmless,
-  left as-is (not worth a manual DB fix for test data).
+  left as-is.
+- `auth.js` and `client.js` have a circular import (each imports the other) — works fine
+  because neither touches the other's exports at module-load time, only inside functions.
+  Flagged so it's not mistaken for a bug later.
 
 ## Technical debt
-- passlib dropped (unmaintained, breaks with modern bcrypt versions — `AttributeError` on
-  `__about__`). Replaced with direct `bcrypt` library calls in `core/security.py`.
+- passlib dropped (unmaintained, breaks with modern bcrypt versions). Replaced with direct
+  `bcrypt` library calls in `core/security.py`.
 - `transcode_video` currently does `-c copy` only (repackages to HLS, no actual multi-resolution
   ladder). `content_variants` table exists in schema but is not yet populated — real adaptive
-  bitrate streaming (multiple resolutions) is deferred to a later phase.
-- `POST /content` hardcodes `uploaded_by=1` — not wired to real authenticated user yet (JWT
-  auth exists via `/auth`, but content upload doesn't check/use it yet).
+  bitrate streaming is deferred to a later phase.
+- No role field on `User` model — every registered user can currently upload content. No
+  admin/viewer distinction exists yet at the data layer, so no real UI gating is possible yet
+  either (Upload button is visible to logged-out users, but backend correctly blocks the
+  actual request with 401 — auth boundary is real, UI polish is not done).
 
 ## Future improvements (explicitly deferred, not forgotten)
 - "Easy tier" recommendations (trending, same-category) — schema already supports it, add once
@@ -85,9 +104,9 @@
 - Turborepo — only if/when build times become a real problem
 - S3-compatible object storage — local disk dev path is structured to map to it later
 - Real multi-resolution transcoding (populate `content_variants`)
-- Wire JWT auth into `POST /content` (currently hardcoded uploader)
+- Role field on User model + role-based UI gating (hide Upload for non-uploaders, admin panel)
+- Redirect-to-login when visiting protected routes (e.g. `/upload`) while logged out
 
 ## Next recommended task
-Scaffold `apps/web` (React + Vite), build a minimal catalog page calling `GET /content`,
-then a player page using `hls.js` to stream `GET /media/{id}/master.m3u8` — proves the
-whole pipeline works from an actual browser, not just VLC.
+Set up Electron in `apps/desktop`, load the existing web build inside it, verify playback
+works identically to the browser. Should be low-effort since it reuses the finished web app.
