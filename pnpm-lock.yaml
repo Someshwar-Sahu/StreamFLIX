@@ -8,10 +8,10 @@ importers:
 
   .: {}
 
-  apps/backend:
+  apps/desktop:
     devDependencies:
       electron:
-        specifier: ^43.1.1
+        specifier: 43.1.1
         version: 43.1.1
 
   apps/web:
