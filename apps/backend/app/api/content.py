@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.config import settings
@@ -48,3 +48,26 @@ async def list_content(db: AsyncSession = Depends(get_db)):
 async def get_content(content_id: int, db: AsyncSession = Depends(get_db)):
     content = await db.get(Content, content_id)
     return content
+
+@router.delete("/{content_id}")
+async def delete_content(
+    content_id: int,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
+):
+    content = await db.get(Content, content_id)
+    if not content:
+        raise HTTPException(404, "Content not found")
+    
+    content_dir = settings.media_storage_path / str(content_id)
+    if content_dir.exists():
+        shutil.rmtree(content_dir)
+
+    raw_dir = settings.media_storage_path / "raw"
+    if raw_dir.exists():
+        for f in raw_dir.glob(f"{content_id}_*"):
+            f.unlink()
+        
+    await db.delete(content)
+    await db.commit()
+    return {"status": "deleted"}

@@ -1,8 +1,10 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { FlatList, Text, View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useLayoutEffect, useCallback } from 'react';
+import { FlatList, Text, StyleSheet, ActivityIndicator, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+
 type Content = {
   id: number;
   title: string;
@@ -29,12 +31,15 @@ export default function Catalog({ navigation }: any) {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    api.get('/content')
-      .then((res) => setContent(res.data))
-      .catch((err) => console.log('Error fetching content:', err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      api.get('/content')
+        .then((res) => setContent(res.data))
+        .catch((err) => console.log('Error fetching content:', err.message))
+        .finally(() => setLoading(false));
+    }, [])
+  );
 
   if (loading) {
     return (

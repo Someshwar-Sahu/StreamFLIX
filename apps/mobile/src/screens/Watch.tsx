@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Video from 'react-native-video';
+import { API_BASE_URL } from '../config';
 
 export default function Watch({ route }: any) {
   const { id } = route.params;
-  const uri = `http://10.81.197.182:8000/media/${id}/master.m3u8`;
+ const uri = `${API_BASE_URL}/media/${id}/master.m3u8`;
 
   return (
     <View style={styles.container}>
