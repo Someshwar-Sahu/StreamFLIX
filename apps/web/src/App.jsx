@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { HashRouter, Routes, Route, Link } from "react-router-dom";
 import Catalog from "./pages/Catalog";
 import Watch from "./pages/Watch";
 import Login from "./pages/Login";
@@ -24,7 +24,7 @@ function Nav() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Nav />
         <Routes>
           <Route path="/" element={<Catalog />} />
@@ -32,7 +32,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/upload" element={<Upload />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   );
 }
