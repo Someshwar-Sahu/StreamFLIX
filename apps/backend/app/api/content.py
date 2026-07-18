@@ -7,7 +7,7 @@ from app.schemas.content import ContentResponse, ContentStatusResponse
 from app.workers.tasks import transcode_video
 import shutil
 from sqlalchemy import select
-from app.core.auth_dep import get_current_user_id
+from app.core.auth_dep import require_uploader
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -17,7 +17,7 @@ async def upload_content(
     description: str = Form(None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(get_current_user_id),
+    user_id: int = Depends(require_uploader),
 ):
     content = Content(title=title, description=description, status="processing", uploaded_by=user_id)
     db.add(content)
@@ -53,7 +53,7 @@ async def get_content(content_id: int, db: AsyncSession = Depends(get_db)):
 async def delete_content(
     content_id: int,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
+    user_id: int = Depends(require_uploader)
 ):
     content = await db.get(Content, content_id)
     if not content:

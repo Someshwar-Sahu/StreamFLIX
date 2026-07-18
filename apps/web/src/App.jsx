@@ -6,11 +6,17 @@ import Upload from "./pages/Upload";
 import { AuthProvider, useAuth } from "./api/AuthContext";
 
 function Nav() {
-  const { token, logout } = useAuth();
+  const { token, role, logout } = useAuth();
   return (
     <nav>
-      <Link to="/">Catalog</Link> | <Link to="/upload">Upload</Link> |{" "}
-      {token ? <button onClick={logout}>Logout</button> : <Link to="/login">Login</Link>}
+      <Link to="/">Catalog</Link>  
+      {role === "uploader" && <> | <Link to="/upload">Upload</Link></>}
+      {" | "}
+      {token ? (
+        <button onClick={() => {logout(); window.location.href = "/login"; }}>Logout</button>
+      ) : (
+        <Link to="/login">Login</Link>
+      )}
     </nav>
   );
 }

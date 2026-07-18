@@ -14,22 +14,24 @@ type Content = {
 export default function Catalog({ navigation }: any) {
   const [content, setContent] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: 'row', gap: 16 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Upload')}>
-            <Text style={{ color: '#1e90ff' }}>Upload</Text>
-          </TouchableOpacity>
+          {role === 'uploader' && (
+            <TouchableOpacity onPress={() => navigation.navigate('Upload')}>
+              <Text style={{ color: '#1e90ff' }}>Upload</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={logout}>
             <Text style={{ color: '#1e90ff' }}>Logout</Text>
           </TouchableOpacity>
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, role]);
 
   useFocusEffect(
     useCallback(() => {

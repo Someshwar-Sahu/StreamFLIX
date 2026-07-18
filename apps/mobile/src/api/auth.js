@@ -11,6 +11,17 @@ export async function getToken() {
     return await AsyncStorage.getItem(TOKEN_KEY)
 }
 
+export async function getRole() {
+    const token = await getToken()
+    if(!token) return null
+    try{
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        return payload.role
+    } catch {
+        return null
+    }
+}
+
 export async function clearToken() {
     await AsyncStorage.removeItem(TOKEN_KEY)
 }
