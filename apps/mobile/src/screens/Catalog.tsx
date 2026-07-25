@@ -11,8 +11,16 @@ type Content = {
   status: string;
 };
 
+type HistoryItem = {
+  content_id: number;
+  title: string;
+  progress_seconds: number;
+  duration_seconds: number | null;
+};
+
 export default function Catalog({ navigation }: any) {
   const [content, setContent] = useState<Content[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { logout, role } = useAuth();
 
@@ -33,6 +41,18 @@ export default function Catalog({ navigation }: any) {
     });
   }, [navigation, role]);
 
+  function fetchHistory() {
+    api.get('/watch-history')
+      .then((res) => setHistory(res.data))
+      .catch(() => setHistory([]));
+  }
+
+  function removeItem(contentId: number) {
+    api.delete(`/watch-history/${contentId}`)
+      .then(() => fetchHistory())
+      .catch(() => {});
+  }
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -40,6 +60,7 @@ export default function Catalog({ navigation }: any) {
         .then((res) => setContent(res.data))
         .catch((err) => console.log('Error fetching content:', err.message))
         .finally(() => setLoading(false));
+      fetchHistory();
     }, [])
   );
 
@@ -53,6 +74,33 @@ export default function Catalog({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {history.length > 0 && (
+        <View style={{ marginBottom: 16 }}>
+          <Text style={styles.header}>Continue Watching</Text>
+          {history.map((item) => {
+            const pct = item.duration_seconds
+              ? Math.min(100, Math.round((item.progress_seconds / item.duration_seconds) * 100))
+              : 0;
+            return (
+              <View key={item.content_id} style={styles.historyRow}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => navigation.navigate('Watch', { id: item.content_id, title: item.title })}
+                >
+                  <Text style={styles.itemText}>{item.title}</Text>
+                  <View style={{ height: 4, backgroundColor: '#333', marginTop: 4, width: '100%' }}>
+                    <View style={{ height: 4, backgroundColor: '#1e90ff', width: `${pct}%` }} />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removeItem(item.content_id)}>
+                  <Text style={{ color: '#1e90ff', paddingHorizontal: 12 }}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       <Text style={styles.header}>Catalog</Text>
       <FlatList
         data={content}
@@ -78,4 +126,5 @@ const styles = StyleSheet.create({
   header: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 16 },
   item: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#333' },
   itemText: { fontSize: 16, color: '#ccc' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#333' },
 });

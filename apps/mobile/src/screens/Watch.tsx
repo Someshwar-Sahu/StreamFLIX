@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Video, { SelectedVideoTrackType } from 'react-native-video';
 import { useRoute } from '@react-navigation/native';
 import { API_BASE_URL } from '../config';
+import api from '../api/client';
 
 type Track = { index: number; height?: number; bitrate?: number };
 
@@ -14,15 +15,70 @@ export default function Watch() {
 
   const [tracks, setTracks] = useState<Track[]>([]);
   const [selectedHeight, setSelectedHeight] = useState<number | 'auto'>('auto');
+  const videoRef = useRef<any>(null);
+  const resumeAppliedRef = useRef(false);
+  const lastReportedRef = useRef(0);
+  const currentTimeRef = useRef(0);
+  const durationRef = useRef(0);
+
+  // Fetch saved progress once, apply on load
+  useEffect(() => {
+    api.get('/watch-history').then((res) => {
+      const entry = res.data.find((h: any) => h.content_id === Number(id));
+      if (entry && entry.progress_seconds > 5) {
+        resumeAppliedRef.current = false; // will seek on first onLoad
+        (Watch as any)._resumeSeconds = entry.progress_seconds;
+      } else {
+        (Watch as any)._resumeSeconds = null;
+      }
+    }).catch(() => {
+      (Watch as any)._resumeSeconds = null;
+    });
+  }, [id]);
+
+  function sendProgress() {
+    if (currentTimeRef.current < 1) return;
+    api.post('/watch-history', {
+      content_id: Number(id),
+      progress_seconds: Math.floor(currentTimeRef.current),
+      duration_seconds: durationRef.current ? Math.floor(durationRef.current) : null,
+    }).catch(() => {});
+  }
+
+  function handleLoad(data: any) {
+    durationRef.current = data.duration;
+    const resumeSeconds = (Watch as any)._resumeSeconds;
+    if (resumeSeconds && !resumeAppliedRef.current && videoRef.current) {
+      videoRef.current.seek(resumeSeconds);
+      resumeAppliedRef.current = true;
+    }
+  }
+
+  function handleProgress(data: any) {
+    currentTimeRef.current = data.currentTime;
+    if (data.currentTime - lastReportedRef.current >= 10) {
+      lastReportedRef.current = data.currentTime;
+      sendProgress();
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      sendProgress(); // save final position on leaving screen
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>{title}</Text>
       <Video
+        ref={videoRef}
         source={{ uri }}
         style={styles.video}
         controls
         resizeMode="contain"
+        onLoad={handleLoad}
+        onProgress={handleProgress}
         selectedVideoTrack={
           selectedHeight === 'auto'
             ? { type: SelectedVideoTrackType.AUTO }

@@ -61,8 +61,27 @@
       value only (RN has no reliable active-track-during-Auto event)
 - [x] Verified real visual diff 1080p vs 480p via VLC — ladder confirmed correct
 
-## Pending work (Phase 11 — not chosen yet)
-- [ ] TBD
+### Phase 11 — Watch history / Continue Watching — COMPLETE
+- [x] **Major (Backend):** `watch_history` upsert via `ON CONFLICT`, `GET /watch-history`
+      (continue-watching list), `DELETE /watch-history/{id}` + `DELETE /watch-history` (clear all)
+- [x] **Bug fixed:** autogenerate silently dropped `UniqueConstraint(user_id, content_id)` on
+      first migration — added via a hand-written migration (`90989a8e8286`) since autogenerate
+      can silently miss constraints when combined with other model changes. Lesson: always
+      verify constraints landed in DB directly (`\d table_name`), don't trust `alembic current`
+      alone.
+- [x] **Major (Web):** Watch.jsx reports progress every 10s + on pause/unload, resumes from
+      saved position on load. Catalog.jsx shows Continue Watching row with progress bar,
+      Remove + Clear All buttons.
+- [x] **Major (Mobile):** Watch.tsx reports progress via `onProgress`/`onLoad`, resumes via
+      `videoRef.seek()`. Catalog.tsx shows Continue Watching section with progress bar + Remove.
+      Known hack: resume value passed via a property on the component function itself to avoid
+      an async-fetch/onLoad race — works but ugly, revisit if resume ever misbehaves.
+- [x] **Bug fixed:** `HashRouter` redirect bug — 401 interceptor and Logout button on Web used
+      plain `/login` instead of `/#/login`, causing an infinite reload loop (browser 404 → full
+      reload → remount → 401 again). Fixed both to use `/#/login`.
+
+## Pending work (Phase 12 — not yet started)
+- [ ] Not yet chosen
 
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
@@ -70,6 +89,9 @@
 - Mobile quality badge shows selected, not verified-active, track
 - After machine restart: start Docker Desktop manually, then `start-dev.ps1`. Packaged .exe
   needs backend running separately (by design)
+- Mobile resume-seek uses a function-object hack instead of clean state — flagged as technical
+  debt, not blocking.
+- (all previously listed issues unchanged — see earlier phase entries)
 
 ## Technical debt
 - passlib dropped, using `bcrypt` directly
@@ -77,6 +99,9 @@
 - Mobile uses npm not pnpm; code-sharing web/mobile unsolved
 - Icon is placeholder
 - Old content has invalid resolution metadata (unfixed)
+- (previous entries unchanged, adding:)
+- Mobile Watch.tsx resume logic uses `(Watch as any)._resumeSeconds` hack — should be refactored
+  to proper state/ref-based gating if it ever causes resume bugs.
 
 ## Future improvements (deferred)
 - "Easy tier" recommendations (trending, same-category)
@@ -88,4 +113,4 @@
 - Mobile signed release build
 
 ## Next recommended task
-Pick Phase 11 major+minor.
+Pick Phase 12 major+minor.

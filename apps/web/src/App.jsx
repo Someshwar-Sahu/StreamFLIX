@@ -13,7 +13,7 @@ function Nav() {
       {role === "uploader" && <> | <Link to="/upload">Upload</Link></>}
       {" | "}
       {token ? (
-        <button onClick={() => {logout(); window.location.href = "/login"; }}>Logout</button>
+        <button onClick={() => {logout(); window.location.href = "/#/login"; }}>Logout</button>
       ) : (
         <Link to="/login">Login</Link>
       )}
