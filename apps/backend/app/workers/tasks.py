@@ -12,17 +12,18 @@ RENDITIONS = [
     {"name": "480p", "height": 480, "bitrate": "1400k"},
 ]
 
-def get_source_height(input_path: str) -> int:
+def get_source_dimensions(input_path: str) -> tuple[int, int]:
     cmd = [
         "ffprobe", "-v", "error",
         "-select_streams", "v:0",
-        "-show_entries", "stream=height",
+        "-show_entries", "stream=width,height",
         "-of", "json",
         input_path,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     data = json.loads(result.stdout)
-    return data["streams"][0]["height"]
+    stream = data["streams"][0]
+    return stream["width"], stream["height"]
 
 
 @celery_app.task
@@ -30,7 +31,7 @@ def transcode_video(content_id: int, input_path: str):
     output_root = settings.media_storage_path / str(content_id)
     output_root.mkdir(parents=True, exist_ok=True)
 
-    source_height = get_source_height(input_path)
+    source_width ,source_height = get_source_dimensions(input_path)
     active_renditions = [r for r in RENDITIONS if r["height"] <= source_height]
     if not active_renditions:
         active_renditions = [RENDITIONS[-1]]
@@ -61,11 +62,11 @@ def transcode_video(content_id: int, input_path: str):
 
         successful_variants.append(rendition)
         bandwidth = int(rendition["bitrate"].replace("k", "")) * 1000
+        target_width = round((source_width / source_height) * rendition["height"] / 2) * 2
         variant_lines.append(
-            f"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION=?x{rendition['height']}\n"
+            f"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION={target_width}x{rendition['height']}\n"
             f"{rendition['name']}/playlist.m3u8"
         )
-
     if not successful_variants:
         with sync_engine.connect() as conn:
             conn.execute(text("UPDATE content SET status = :status WHERE id = :id"),
