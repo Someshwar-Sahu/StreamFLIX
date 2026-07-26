@@ -80,8 +80,33 @@
       plain `/login` instead of `/#/login`, causing an infinite reload loop (browser 404 → full
       reload → remount → 401 again). Fixed both to use `/#/login`.
 
-## Pending work (Phase 12 — not yet started)
-- [ ] Not yet chosen
+### Phase 12 — Search, categories, discovery backend — COMPLETE
+- [x] **Major:** Ranked title search (`GET /content?q=`) — exact match, then starts-with, then
+      contains, via SQL `CASE` priority ordering (no `pg_trgm`/fuzzy match — flagged as future
+      option if typo-tolerance ever needed)
+- [x] **Major:** Category system — many-to-many (`Category` model, `content_categories`
+      junction table), `GET /categories`, `POST /categories` (uploader-only), upload accepts
+      `category_names` (comma-separated names, not IDs), filter via `GET /content?category=`
+      (repeatable param, name-based, OR match)
+- [x] **Bug fixed:** initial category design used a single FK + IDs — corrected to
+      many-to-many + name-based filtering per real requirement (one video can have multiple
+      categories; API consumers shouldn't need to know category IDs)
+- [x] **Bug fixed:** first migration attempt for many-to-many didn't preserve existing data —
+      corrected migration migrates old single `category_id` values into the junction table
+      before dropping the column
+- [x] **Major:** `GET /content/trending` — distinct-viewer count via `watch_history` in last N
+      days (default 7). Known limitation (not a bug): looks sparse/empty with few real users —
+      cold-start data problem, resolves naturally once there's real multi-user traffic. Correctly
+      does NOT count repeat views by the same user (thanks to Phase 11's unique constraint).
+- [x] **Major:** `GET /content/latest` — pure `created_at DESC`, no watch-history dependency,
+      always meaningful regardless of user count
+- [x] **Major:** `GET /content/{id}/similar` — same-category recommendations, excludes self,
+      ready-only
+- [x] **Bug fixed:** `get_similar` used `hasattr()` to short-circuit a lazy-load, which still
+      triggered the lazy-load anyway — async SQLAlchemy can't lazy-load outside an awaited
+      context (`MissingGreenlet`). Fixed by always eager-loading via `selectinload` up front.
+- [x] Route-ordering rule applied consistently: `/trending` and `/latest` both placed before
+      `/{content_id}` in the router to avoid FastAPI matching them as an int path param
 
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
@@ -92,6 +117,11 @@
 - Mobile resume-seek uses a function-object hack instead of clean state — flagged as technical
   debt, not blocking.
 - (all previously listed issues unchanged — see earlier phase entries)
+- (all previous entries unchanged)
+- Category name matching is exact/case-sensitive (`Category.name.in_(...)`) — fine for a
+  dropdown-driven UI sourced from `GET /categories`, would need normalization if free-text
+  category input is ever allowed
+- Trending endpoint needs real multi-user data to be meaningful — not a bug, a data problem
 
 ## Technical debt
 - passlib dropped, using `bcrypt` directly
@@ -102,6 +132,8 @@
 - (previous entries unchanged, adding:)
 - Mobile Watch.tsx resume logic uses `(Watch as any)._resumeSeconds` hack — should be refactored
   to proper state/ref-based gating if it ever causes resume bugs.
+- (previous entries unchanged)
+- No fuzzy/typo-tolerant search (would need `pg_trgm` extension) — exact/prefix/contains only
 
 ## Future improvements (deferred)
 - "Easy tier" recommendations (trending, same-category)
@@ -112,5 +144,8 @@
 - Admin role tier
 - Mobile signed release build
 
+## Pending work (Phase 13 — not yet started)
+- [ ] Not yet chosen
+
 ## Next recommended task
-Pick Phase 12 major+minor.
+Pick Phase 13 major+minor.
