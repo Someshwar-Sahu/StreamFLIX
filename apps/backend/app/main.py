@@ -8,6 +8,7 @@ from app.api.auth import router as auth_router
 from app.api.content import router as content_router
 from app.api.categories import router as categories_router
 from app.api.admin import router as admin_router
+from app.api.admin_storage import router as admin_storage_router
 
 app = FastAPI(title="StreamFlix API")
 
@@ -20,6 +21,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(admin_storage_router)
 app.include_router(content_router)
 app.include_router(watch_history_router)
 app.include_router(categories_router)

@@ -113,8 +113,23 @@
       uploading)
 - [x] `require_admin` dependency added
 - [x] `GET /admin/users`, `PATCH /admin/users/{id}/role` (with self-demotion guard)
+      
+- [x] `require_uploader` fixed to accept `admin` role too (previously blocked admins from
+      uploading)
+- [x] `require_admin` dependency added
+- [x] `GET /admin/users`, `PATCH /admin/users/{id}/role` (self-demotion guard included)
+- [x] First admin bootstrapped manually via direct DB update (same chicken-egg pattern as
+      first uploader — no API can promote the very first admin)
+- [x] `GET /admin/storage` — total usage, per-content breakdown, raw-leftover detection
+      (ties back to Phase 7's cleanup-bug known issue)
+- [x] Caught + fixed during testing: auth dependency was temporarily removed for convenience
+      during a manual test, re-added before considering this done — endpoint now correctly
+      403/401s unauthorized requests
+- [x] Verified end-to-end with real (if repetitive/lazily-named) test upload data
+
 - [ ] Not yet tested end-to-end (needs manual DB bootstrap of first admin + re-login + /docs
       testing) — deferred, no UI exists to verify naturally yet, per backend-first plan
+- [ ] Not yet UI-verified (no admin panel exists yet — by design, backend-first plan)
 
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
@@ -130,6 +145,9 @@
   dropdown-driven UI sourced from `GET /categories`, would need normalization if free-text
   category input is ever allowed
 - Trending endpoint needs real multi-user data to be meaningful — not a bug, a data problem
+- (all previous entries unchanged)
+- `GET /admin/storage` does a synchronous `os.walk` disk scan per request — fine at current
+  scale, would need caching before handling production-scale storage
 
 ## Technical debt
 - passlib dropped, using `bcrypt` directly
