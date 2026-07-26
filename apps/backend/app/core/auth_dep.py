@@ -10,6 +10,12 @@ def get_current_user_role(authorization: str = Header(None)) -> str:
     payload = _decode(authorization)
     return payload.get("role", "viewer")
 
+def get_current_profile_id(authorization: str = Header(None)) -> int:
+    payload = _decode(authorization)
+    if "profile_id" not in payload:
+        raise HTTPException(400, "No profile selected — call POST /profiles/{id}/select first")
+    return int(payload["profile_id"])
+
 def require_uploader(authorization: str = Header(None)):
     payload = _decode(authorization)
     if payload.get("role") not in ("uploader", "admin"):

@@ -5,12 +5,10 @@ from app.models.user import Base
 class WatchHistory(Base):
     __tablename__ = "watch_history"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id", "content_id", name="uq_user_content",
-        ),
+        UniqueConstraint("profile_id", "content_id", name="uq_profile_content"),
     )
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False)
     content_id = Column(Integer, ForeignKey("content.id"), nullable=False)
     progress_seconds = Column(Integer, default=0)
     duration_seconds = Column(Integer, nullable=True)

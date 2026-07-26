@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.core.db import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User
+from app.models.profile import Profile
 from app.schemas.user import UserRegister, UserLogin, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -18,6 +19,11 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    default_profile = Profile(account_id=user.id, name=user.username)
+    db.add(default_profile)
+    await db.commit()
+
     return TokenResponse(access_token=create_access_token(user.id, user.role))
 
 @router.post("/login", response_model=TokenResponse)

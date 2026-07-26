@@ -20,7 +20,7 @@ class Content(Base):
     thumbnail_url = Column(String, nullable=True)
     status = Column(String, default="processing")
     duration = Column(Integer, nullable=True)
-    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    uploaded_by = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     variants = relationship("ContentVariant", back_populates="content")

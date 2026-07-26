@@ -9,6 +9,8 @@ def hash_password(password: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
-def create_access_token(user_id: int, role: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=1)
-    return jwt.encode({"sub": str(user_id), "role": role, "exp": expire}, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+def create_access_token(account_id: int, role: str, profile_id: int | None = None) -> str:
+    payload = {"sub": str(account_id), "role": role, "exp": datetime.utcnow() + timedelta(hours=1)}
+    if profile_id is not None:
+        payload["profile_id"] = profile_id
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)

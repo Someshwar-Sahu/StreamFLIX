@@ -131,6 +131,30 @@
       testing) — deferred, no UI exists to verify naturally yet, per backend-first plan
 - [ ] Not yet UI-verified (no admin panel exists yet — by design, backend-first plan)
 
+### Phase 14 — Accounts/Profiles architecture (Option A) — BACKEND DONE, NOT VERIFIED
+- [x] Full DB wipe + fresh single migration (accounts, profiles, categories, content,
+      content_categories, content_variants, watch_history) — clean single-shot autogenerate,
+      no incremental-diff risk like earlier phases
+- [x] `users` table renamed to `accounts` (class name `User` kept unchanged everywhere for
+      minimal code churn — table name is the only thing that changed)
+- [x] New `Profile` model — belongs to one account, `watch_history` now keys off `profile_id`
+      not `account_id`, so each profile has fully separate history/list/future-ratings
+- [x] Two-step auth: login/register → account-level token (no `profile_id`) → 
+      `POST /profiles/{id}/select` → profile-scoped token (adds `profile_id` claim) — required
+      before any profile-scoped endpoint (watch-history) will work
+- [x] Auto-creates one default profile on registration (named after username) — satisfies
+      "uploader/admin gets exactly one profile" naturally without extra steps
+- [x] Profile count limits enforced app-side: viewer max 3, uploader/admin max 1
+- [x] Admin bootstrapped via direct DB update (same pattern as Phase 13)
+- [ ] **NOT YET VERIFIED end-to-end** — attempted to test the full
+      login → select-profile → use-new-token flow via `/docs` manually, ran into repeated
+      copy/paste friction getting the right token into Authorize. Backend code is believed
+      correct (matches the same pattern used successfully for admin/storage in Phase 13), but
+      genuinely unconfirmed. **Must retest before building anything else on top of `profile_id`
+      (e.g. Watchlist, Ratings) — if this flow is broken, those inherit the same bug silently.**
+- [ ] Web UI nav still checks `role === "uploader"` only (doesn't show Upload for admin) —
+      intentionally left unfixed per backend-first plan, will fix during Phase 15/UI pass
+
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
 - Mobile backend URL hardcoded in `config.ts`, manual edit needed if LAN IP changes
@@ -148,6 +172,9 @@
 - (all previous entries unchanged)
 - `GET /admin/storage` does a synchronous `os.walk` disk scan per request — fine at current
   scale, would need caching before handling production-scale storage
+- (all previous entries unchanged)
+- **Phase 14's profile-select flow is unverified.** Do not trust it silently — confirm with a
+  real request/response cycle before relying on `profile_id` elsewhere.
 
 ## Technical debt
 - passlib dropped, using `bcrypt` directly
@@ -170,8 +197,12 @@
 - Admin role tier
 - Mobile signed release build
 
-## Pending work (Phase 14 — not yet started)
-- [ ] Not yet chosen
+## Pending work (Phase 15)
+- [ ] **First priority when resumed:** verify Phase 14's profile-select flow actually works
+      (via `/docs`, patient step-by-step, or via a quick throwaway script/curl if Swagger UI
+      keeps being awkward to copy from)
+- [ ] Watchlist backend (built on `profile_id`, same shape as watch_history)
+- [ ] Ratings backend (built on `profile_id`; will also improve `trending`/`similar` scoring)
 
 ## Next recommended task
-Pick Phase 14 major+minor.
+Pick Phase 15 major+minor.
