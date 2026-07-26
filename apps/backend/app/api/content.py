@@ -1,16 +1,23 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
+
+from sqlalchemy import case, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 from app.core.db import get_db
 from app.core.config import settings
+
 from app.models.content import Content
 from app.models.watch_history import WatchHistory
 from app.models.category import Category
+from app.models.rating import Rating
+
 from app.schemas.content import ContentResponse, ContentStatusResponse
-from app.workers.tasks import transcode_video
-import shutil
-from sqlalchemy import case, select, func
 from app.core.auth_dep import require_uploader
+
+from app.workers.tasks import transcode_video
+
+import shutil
 from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/content", tags=["content"])
@@ -53,6 +60,7 @@ async def get_status(content_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("", response_model=list[ContentResponse])
 async def list_content(q: str | None = None, category: list[str] |  None = Query(None), db: AsyncSession = Depends(get_db)):
+    
     stmt = select(Content).options(selectinload(Content.categories))
 
     if category:
@@ -78,18 +86,33 @@ async def get_trending(
     db: AsyncSession = Depends(get_db),
 ):
     since = datetime.utcnow() - timedelta(days=days)
-    stmt = (
-        select(Content, func.count(WatchHistory.id).label("watch_count"))
-        .join(WatchHistory, WatchHistory.content_id == Content.id)
-        .options(selectinload(Content.categories))
+
+    view_counts = (
+        select(WatchHistory.content_id, func.count(WatchHistory.id).label("views"))
         .where(WatchHistory.last_watched_at >= since)
+        .group_by(WatchHistory.content_id)
+        .subquery()
+    )
+    rating_scores = (
+        select(Rating.content_id, func.sum(Rating.value).label("net_likes"))
+        .group_by(Rating.content_id)
+        .subquery()
+    )
+
+    score = (func.coalesce(view_counts.c.views, 0) * 2) + func.coalesce(rating_scores.c.net_likes, 0)
+
+    stmt = (
+        select(Content)
+        .outerjoin(view_counts, view_counts.c.content_id == Content.id)
+        .outerjoin(rating_scores, rating_scores.c.content_id == Content.id)
+        .options(selectinload(Content.categories))
         .where(Content.status == "ready")
-        .group_by(Content.id)
-        .order_by(func.count(WatchHistory.id).desc())
+        .where(view_counts.c.views.isnot(None)) 
+        .order_by(score.desc())
         .limit(limit)
     )
     result = await db.execute(stmt)
-    return [row[0] for row in result.all()]
+    return result.scalars().all()
 
 @router.get("/latest", response_model=list[ContentResponse])
 async def get_latest(
@@ -123,12 +146,20 @@ async def get_similar(
     if not category_ids:
         return []
 
+    rating_scores = (
+        select(Rating.content_id, func.sum(Rating.value).label("net_likes"))
+        .group_by(Rating.content_id)
+        .subquery()
+    )
+
     stmt = (
         select(Content)
+        .outerjoin(rating_scores, rating_scores.c.content_id == Content.id)
         .options(selectinload(Content.categories))
         .where(Content.categories.any(Category.id.in_(category_ids)))
         .where(Content.id != content_id)
         .where(Content.status == "ready")
+        .order_by(func.coalesce(rating_scores.c.net_likes, 0).desc())
         .limit(limit)
     )
     result = await db.execute(stmt)

@@ -9,7 +9,7 @@
 ---
 
 ## Current phase
-**Phase 16 — NOT STARTED**
+**Phase 17 — NOT STARTED**
 
 ## Completed work
 
@@ -103,12 +103,19 @@
 - [x] `Watchlist` model (`profile_id` + `content_id`, unique constraint), upsert-safe add (`ON CONFLICT DO NOTHING`), `GET`/`DELETE` endpoints
 - [x] Verified end-to-end: add → list → confirmed real data returned
 
+### Phase 16 — Ratings backend — COMPLETE, VERIFIED
+- [x] `Rating` model (`profile_id` + `content_id`, unique constraint, `value` 1/-1)
+- [x] `POST /ratings` (upsert), `DELETE /ratings/{content_id}`, `GET /ratings/{content_id}` (likes/dislikes count + caller's own rating)
+- [x] Bug fixed: `created_at` briefly had `timezone.utc` object instead of a callable default — fixed to `datetime.utcnow`
+- [x] `trending` upgraded: score = `(recent_views * 2) + net_likes`, still requires at least one recent view (pure-liked-but-unwatched content won't surface as "trending")
+- [x] `similar` upgraded: same category-match logic, now ordered by net-likes descending instead of arbitrary DB order
+- [x] Verified end-to-end via PowerShell — rate → summary correct → trending/similar both execute without error (small/trivial results expected with only one test video)
+
 ---
 
-## Pending work (Phase 16)
-- [ ] Ratings backend (`profile_id`-based; will feed into `trending`/`similar` scoring next)
-- [ ] Series/Seasons/Episodes (content model overhaul — biggest remaining item)
-- [ ] Search autocomplete (small, save for UI pass)
+## Pending work (Phase 17)
+- [ ] Series/Seasons/Episodes (content model overhaul)
+- [ ] Search autocomplete (small, deferred to UI pass)
 
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
@@ -137,4 +144,4 @@
 - Mobile signed release build
 
 ## Next recommended task
-Start Phase 16 items: Ratings backend or the Series/Seasons/Episodes model overhaul.
+Start Phase 17 items: Series/Seasons/Episodes (content model overhaul).
