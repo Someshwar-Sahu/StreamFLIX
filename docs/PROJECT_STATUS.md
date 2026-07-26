@@ -9,7 +9,7 @@
 ---
 
 ## Current phase
-**Phase 11 — NOT STARTED**
+**Phase 16 — NOT STARTED**
 
 ## Completed work
 
@@ -54,127 +54,71 @@
 
 ### Phase 10 — Manual quality-selector UI — COMPLETE
 - [x] Web: hls.js dropdown, forces `hls.currentLevel`
-- [x] Bug fixed: master playlist `RESOLUTION=?x{h}` → real `ffprobe`-computed `WxH`
-      (only new transcodes; old content still broken, unfixed)
+- [x] Bug fixed: master playlist `RESOLUTION=?x{h}` → real `ffprobe`-computed `WxH` (only new transcodes; old content still broken, unfixed)
 - [x] Mobile: `selectedVideoTrack` chips (AUTO/RESOLUTION via `SelectedVideoTrackType` enum)
-- [x] Minor: active quality badge — Web real (`LEVEL_SWITCHED` event), Mobile shows selected
-      value only (RN has no reliable active-track-during-Auto event)
+- [x] Minor: active quality badge — Web real (`LEVEL_SWITCHED` event), Mobile shows selected value only (RN has no reliable active-track-during-Auto event)
 - [x] Verified real visual diff 1080p vs 480p via VLC — ladder confirmed correct
 
 ### Phase 11 — Watch history / Continue Watching — COMPLETE
-- [x] **Major (Backend):** `watch_history` upsert via `ON CONFLICT`, `GET /watch-history`
-      (continue-watching list), `DELETE /watch-history/{id}` + `DELETE /watch-history` (clear all)
-- [x] **Bug fixed:** autogenerate silently dropped `UniqueConstraint(user_id, content_id)` on
-      first migration — added via a hand-written migration (`90989a8e8286`) since autogenerate
-      can silently miss constraints when combined with other model changes. Lesson: always
-      verify constraints landed in DB directly (`\d table_name`), don't trust `alembic current`
-      alone.
-- [x] **Major (Web):** Watch.jsx reports progress every 10s + on pause/unload, resumes from
-      saved position on load. Catalog.jsx shows Continue Watching row with progress bar,
-      Remove + Clear All buttons.
-- [x] **Major (Mobile):** Watch.tsx reports progress via `onProgress`/`onLoad`, resumes via
-      `videoRef.seek()`. Catalog.tsx shows Continue Watching section with progress bar + Remove.
-      Known hack: resume value passed via a property on the component function itself to avoid
-      an async-fetch/onLoad race — works but ugly, revisit if resume ever misbehaves.
-- [x] **Bug fixed:** `HashRouter` redirect bug — 401 interceptor and Logout button on Web used
-      plain `/login` instead of `/#/login`, causing an infinite reload loop (browser 404 → full
-      reload → remount → 401 again). Fixed both to use `/#/login`.
+- [x] **Major (Backend):** `watch_history` upsert via `ON CONFLICT`, `GET /watch-history` (continue-watching list), `DELETE /watch-history/{id}` + `DELETE /watch-history` (clear all)
+- [x] **Bug fixed:** autogenerate silently dropped `UniqueConstraint(user_id, content_id)` on first migration — added via a hand-written migration (`90989a8e8286`) since autogenerate can silently miss constraints when combined with other model changes. Lesson: always verify constraints landed in DB directly (`\d table_name`), don't trust `alembic current` alone.
+- [x] **Major (Web):** Watch.jsx reports progress every 10s + on pause/unload, resumes from saved position on load. Catalog.jsx shows Continue Watching row with progress bar, Remove + Clear All buttons.
+- [x] **Major (Mobile):** Watch.tsx reports progress via `onProgress`/`onLoad`, resumes via `videoRef.seek()`. Catalog.tsx shows Continue Watching section with progress bar + Remove. Known hack: resume value passed via a property on the component function itself to avoid an async-fetch/onLoad race — works but ugly, revisit if resume ever misbehaves.
+- [x] **Bug fixed:** `HashRouter` redirect bug — 401 interceptor and Logout button on Web used plain `/login` instead of `/#/login`, causing an infinite reload loop (browser 404 → full reload → remount → 401 again). Fixed both to use `/#/login`.
 
 ### Phase 12 — Search, categories, discovery backend — COMPLETE
-- [x] **Major:** Ranked title search (`GET /content?q=`) — exact match, then starts-with, then
-      contains, via SQL `CASE` priority ordering (no `pg_trgm`/fuzzy match — flagged as future
-      option if typo-tolerance ever needed)
-- [x] **Major:** Category system — many-to-many (`Category` model, `content_categories`
-      junction table), `GET /categories`, `POST /categories` (uploader-only), upload accepts
-      `category_names` (comma-separated names, not IDs), filter via `GET /content?category=`
-      (repeatable param, name-based, OR match)
-- [x] **Bug fixed:** initial category design used a single FK + IDs — corrected to
-      many-to-many + name-based filtering per real requirement (one video can have multiple
-      categories; API consumers shouldn't need to know category IDs)
-- [x] **Bug fixed:** first migration attempt for many-to-many didn't preserve existing data —
-      corrected migration migrates old single `category_id` values into the junction table
-      before dropping the column
-- [x] **Major:** `GET /content/trending` — distinct-viewer count via `watch_history` in last N
-      days (default 7). Known limitation (not a bug): looks sparse/empty with few real users —
-      cold-start data problem, resolves naturally once there's real multi-user traffic. Correctly
-      does NOT count repeat views by the same user (thanks to Phase 11's unique constraint).
-- [x] **Major:** `GET /content/latest` — pure `created_at DESC`, no watch-history dependency,
-      always meaningful regardless of user count
-- [x] **Major:** `GET /content/{id}/similar` — same-category recommendations, excludes self,
-      ready-only
-- [x] **Bug fixed:** `get_similar` used `hasattr()` to short-circuit a lazy-load, which still
-      triggered the lazy-load anyway — async SQLAlchemy can't lazy-load outside an awaited
-      context (`MissingGreenlet`). Fixed by always eager-loading via `selectinload` up front.
-- [x] Route-ordering rule applied consistently: `/trending` and `/latest` both placed before
-      `/{content_id}` in the router to avoid FastAPI matching them as an int path param
+- [x] **Major:** Ranked title search (`GET /content?q=`) — exact match, then starts-with, then contains, via SQL `CASE` priority ordering (no `pg_trgm`/fuzzy match — flagged as future option if typo-tolerance ever needed)
+- [x] **Major:** Category system — many-to-many (`Category` model, `content_categories` junction table), `GET /categories`, `POST /categories` (uploader-only), upload accepts `category_names` (comma-separated names, not IDs), filter via `GET /content?category=` (repeatable param, name-based, OR match)
+- [x] **Bug fixed:** initial category design used a single FK + IDs — corrected to many-to-many + name-based filtering per real requirement (one video can have multiple categories; API consumers shouldn't need to know category IDs)
+- [x] **Bug fixed:** first migration attempt for many-to-many didn't preserve existing data — corrected migration migrates old single `category_id` values into the junction table before dropping the column
+- [x] **Major:** `GET /content/trending` — distinct-viewer count via `watch_history` in last N days (default 7). Known limitation (not a bug): looks sparse/empty with few real users — cold-start data problem, resolves naturally once there's real multi-user traffic. Correctly does NOT count repeat views by the same user (thanks to Phase 11's unique constraint).
+- [x] **Major:** `GET /content/latest` — pure `created_at DESC`, no watch-history dependency, always meaningful regardless of user count
+- [x] **Major:** `GET /content/{id}/similar` — same-category recommendations, excludes self, ready-only
+- [x] **Bug fixed:** `get_similar` used `hasattr()` to short-circuit a lazy-load, which still triggered the lazy-load anyway — async SQLAlchemy can't lazy-load outside an awaited context (`MissingGreenlet`). Fixed by always eager-loading via `selectinload` up front.
+- [x] Route-ordering rule applied consistently: `/trending` and `/latest` both placed before `/{content_id}` in the router to avoid FastAPI matching them as an int path param
 
 ### Phase 13 — Admin role tier — BACKEND DONE, NOT UI-VERIFIED
-- [x] `require_uploader` fixed to also accept `admin` role (previously blocked admins from
-      uploading)
+- [x] `require_uploader` fixed to also accept `admin` role (previously blocked admins from uploading)
 - [x] `require_admin` dependency added
 - [x] `GET /admin/users`, `PATCH /admin/users/{id}/role` (with self-demotion guard)
-      
-- [x] `require_uploader` fixed to accept `admin` role too (previously blocked admins from
-      uploading)
-- [x] `require_admin` dependency added
-- [x] `GET /admin/users`, `PATCH /admin/users/{id}/role` (self-demotion guard included)
-- [x] First admin bootstrapped manually via direct DB update (same chicken-egg pattern as
-      first uploader — no API can promote the very first admin)
-- [x] `GET /admin/storage` — total usage, per-content breakdown, raw-leftover detection
-      (ties back to Phase 7's cleanup-bug known issue)
-- [x] Caught + fixed during testing: auth dependency was temporarily removed for convenience
-      during a manual test, re-added before considering this done — endpoint now correctly
-      403/401s unauthorized requests
+- [x] First admin bootstrapped manually via direct DB update (same chicken-egg pattern as first uploader — no API can promote the very first admin)
+- [x] `GET /admin/storage` — total usage, per-content breakdown, raw-leftover detection (ties back to Phase 7's cleanup-bug known issue)
+- [x] Caught + fixed during testing: auth dependency was temporarily removed for convenience during a manual test, re-added before considering this done — endpoint now correctly 403/401s unauthorized requests
 - [x] Verified end-to-end with real (if repetitive/lazily-named) test upload data
+- [ ] Admin panel UI deferred (no UI exists yet — by design, backend-first plan)
 
-- [ ] Not yet tested end-to-end (needs manual DB bootstrap of first admin + re-login + /docs
-      testing) — deferred, no UI exists to verify naturally yet, per backend-first plan
-- [ ] Not yet UI-verified (no admin panel exists yet — by design, backend-first plan)
-
-### Phase 14 — Accounts/Profiles architecture (Option A) — BACKEND DONE, NOT VERIFIED
-- [x] Full DB wipe + fresh single migration (accounts, profiles, categories, content,
-      content_categories, content_variants, watch_history) — clean single-shot autogenerate,
-      no incremental-diff risk like earlier phases
-- [x] `users` table renamed to `accounts` (class name `User` kept unchanged everywhere for
-      minimal code churn — table name is the only thing that changed)
-- [x] New `Profile` model — belongs to one account, `watch_history` now keys off `profile_id`
-      not `account_id`, so each profile has fully separate history/list/future-ratings
-- [x] Two-step auth: login/register → account-level token (no `profile_id`) → 
-      `POST /profiles/{id}/select` → profile-scoped token (adds `profile_id` claim) — required
-      before any profile-scoped endpoint (watch-history) will work
-- [x] Auto-creates one default profile on registration (named after username) — satisfies
-      "uploader/admin gets exactly one profile" naturally without extra steps
+### Phase 14 — Accounts/Profiles architecture (Option A) — COMPLETE, VERIFIED
+- [x] Full DB wipe + fresh single migration (accounts, profiles, categories, content, content_categories, content_variants, watch_history) — clean single-shot autogenerate, no incremental-diff risk like earlier phases
+- [x] `users` table renamed to `accounts` (class name `User` kept unchanged everywhere for minimal code churn — table name is the only thing that changed)
+- [x] New `Profile` model — belongs to one account, `watch_history` now keys off `profile_id` not `account_id`, so each profile has fully separate history/list/future-ratings
+- [x] Two-step auth: login/register → account-level token (no `profile_id`) → `POST /profiles/{id}/select` → profile-scoped token (adds `profile_id` claim) — required before any profile-scoped endpoint (watch-history) will work
+- [x] Auto-creates one default profile on registration (named after username) — satisfies "uploader/admin gets exactly one profile" naturally without extra steps
 - [x] Profile count limits enforced app-side: viewer max 3, uploader/admin max 1
 - [x] Admin bootstrapped via direct DB update (same pattern as Phase 13)
-- [ ] **NOT YET VERIFIED end-to-end** — attempted to test the full
-      login → select-profile → use-new-token flow via `/docs` manually, ran into repeated
-      copy/paste friction getting the right token into Authorize. Backend code is believed
-      correct (matches the same pattern used successfully for admin/storage in Phase 13), but
-      genuinely unconfirmed. **Must retest before building anything else on top of `profile_id`
-      (e.g. Watchlist, Ratings) — if this flow is broken, those inherit the same bug silently.**
-- [ ] Web UI nav still checks `role === "uploader"` only (doesn't show Upload for admin) —
-      intentionally left unfixed per backend-first plan, will fix during Phase 15/UI pass
+- [x] Full flow tested via PowerShell `Invoke-RestMethod`: login → account token → `GET /profiles` → `select` → profile token (`profile_id` claim confirmed present) → `POST /watch-history` → 200
+- [x] DB wipe left orphaned files in `media_storage/` referencing deleted content rows — not a bug, just stale disk data from the wipe; cleared/re-uploaded fresh test content
+- [ ] Web UI nav still checks `role === "uploader"` only (doesn't show Upload for admin) — intentionally left unfixed per backend-first plan, will fix during Phase 16/UI pass
+
+### Phase 15 — Watchlist backend — COMPLETE, VERIFIED
+- [x] `Watchlist` model (`profile_id` + `content_id`, unique constraint), upsert-safe add (`ON CONFLICT DO NOTHING`), `GET`/`DELETE` endpoints
+- [x] Verified end-to-end: add → list → confirmed real data returned
+
+---
+
+## Pending work (Phase 16)
+- [ ] Ratings backend (`profile_id`-based; will feed into `trending`/`similar` scoring next)
+- [ ] Series/Seasons/Episodes (content model overhaul — biggest remaining item)
+- [ ] Search autocomplete (small, save for UI pass)
 
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
 - Mobile backend URL hardcoded in `config.ts`, manual edit needed if LAN IP changes
 - Mobile quality badge shows selected, not verified-active, track
-- After machine restart: start Docker Desktop manually, then `start-dev.ps1`. Packaged .exe
-  needs backend running separately (by design)
-- Mobile resume-seek uses a function-object hack instead of clean state — flagged as technical
-  debt, not blocking.
-- (all previously listed issues unchanged — see earlier phase entries)
-- (all previous entries unchanged)
-- Category name matching is exact/case-sensitive (`Category.name.in_(...)`) — fine for a
-  dropdown-driven UI sourced from `GET /categories`, would need normalization if free-text
-  category input is ever allowed
+- After machine restart: start Docker Desktop manually, then `start-dev.ps1`. Packaged .exe needs backend running separately (by design)
+- Mobile resume-seek uses a function-object hack instead of clean state — flagged as technical debt, not blocking.
+- Category name matching is exact/case-sensitive (`Category.name.in_(...)`) — fine for a dropdown-driven UI sourced from `GET /categories`, would need normalization if free-text category input is ever allowed
 - Trending endpoint needs real multi-user data to be meaningful — not a bug, a data problem
-- (all previous entries unchanged)
-- `GET /admin/storage` does a synchronous `os.walk` disk scan per request — fine at current
-  scale, would need caching before handling production-scale storage
-- (all previous entries unchanged)
-- **Phase 14's profile-select flow is unverified.** Do not trust it silently — confirm with a
-  real request/response cycle before relying on `profile_id` elsewhere.
+- `GET /admin/storage` does a synchronous `os.walk` disk scan per request — fine at current scale, would need caching before handling production-scale storage
 
 ## Technical debt
 - passlib dropped, using `bcrypt` directly
@@ -182,27 +126,15 @@
 - Mobile uses npm not pnpm; code-sharing web/mobile unsolved
 - Icon is placeholder
 - Old content has invalid resolution metadata (unfixed)
-- (previous entries unchanged, adding:)
-- Mobile Watch.tsx resume logic uses `(Watch as any)._resumeSeconds` hack — should be refactored
-  to proper state/ref-based gating if it ever causes resume bugs.
-- (previous entries unchanged)
+- Mobile Watch.tsx resume logic uses `(Watch as any)._resumeSeconds` hack — should be refactored to proper state/ref-based gating if it ever causes resume bugs.
 - No fuzzy/typo-tolerant search (would need `pg_trgm` extension) — exact/prefix/contains only
 
 ## Future improvements (deferred)
-- "Easy tier" recommendations (trending, same-category)
 - Turborepo (only if build times become a problem)
 - S3-compatible storage
 - Code-sharing strategy web/mobile
 - Storage usage monitoring
-- Admin role tier
 - Mobile signed release build
 
-## Pending work (Phase 15)
-- [ ] **First priority when resumed:** verify Phase 14's profile-select flow actually works
-      (via `/docs`, patient step-by-step, or via a quick throwaway script/curl if Swagger UI
-      keeps being awkward to copy from)
-- [ ] Watchlist backend (built on `profile_id`, same shape as watch_history)
-- [ ] Ratings backend (built on `profile_id`; will also improve `trending`/`similar` scoring)
-
 ## Next recommended task
-Pick Phase 15 major+minor.
+Start Phase 16 items: Ratings backend or the Series/Seasons/Episodes model overhaul.

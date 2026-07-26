@@ -7,7 +7,7 @@ class ProfileCreate(BaseModel):
 class ProfileOut(BaseModel):
     id: int
     name: str
-    avatar_url: str
+    avatar_url: str | None = None
 
     class Config:
         from_attributes = True
