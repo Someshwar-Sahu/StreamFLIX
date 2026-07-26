@@ -12,8 +12,14 @@ def get_current_user_role(authorization: str = Header(None)) -> str:
 
 def require_uploader(authorization: str = Header(None)):
     payload = _decode(authorization)
-    if payload.get("role") != "uploader":
+    if payload.get("role") not in ("uploader", "admin"):
         raise HTTPException(403, "Uploader role required")
+    return int(payload["sub"])
+
+def require_admin(authorization: str = Header(None)):
+    payload = _decode(authorization)
+    if payload.get("role") != "admin":
+        raise HTTPException(403, "Admin role required")
     return int(payload["sub"])
 
 def _decode(authorization: str):

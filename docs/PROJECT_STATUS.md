@@ -108,6 +108,14 @@
 - [x] Route-ordering rule applied consistently: `/trending` and `/latest` both placed before
       `/{content_id}` in the router to avoid FastAPI matching them as an int path param
 
+### Phase 13 — Admin role tier — BACKEND DONE, NOT UI-VERIFIED
+- [x] `require_uploader` fixed to also accept `admin` role (previously blocked admins from
+      uploading)
+- [x] `require_admin` dependency added
+- [x] `GET /admin/users`, `PATCH /admin/users/{id}/role` (with self-demotion guard)
+- [ ] Not yet tested end-to-end (needs manual DB bootstrap of first admin + re-login + /docs
+      testing) — deferred, no UI exists to verify naturally yet, per backend-first plan
+
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed
 - Mobile backend URL hardcoded in `config.ts`, manual edit needed if LAN IP changes
@@ -144,8 +152,8 @@
 - Admin role tier
 - Mobile signed release build
 
-## Pending work (Phase 13 — not yet started)
+## Pending work (Phase 14 — not yet started)
 - [ ] Not yet chosen
 
 ## Next recommended task
-Pick Phase 13 major+minor.
+Pick Phase 14 major+minor.
