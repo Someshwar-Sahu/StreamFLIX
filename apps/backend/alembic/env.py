@@ -4,7 +4,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from app.core.config import settings
 from app.models.user import Base
-from app.models import content, watch_history, category, profile, watchlist, rating
+from app.models import content, watch_history, category, profile, watchlist, rating, series
 
 from alembic import context
 

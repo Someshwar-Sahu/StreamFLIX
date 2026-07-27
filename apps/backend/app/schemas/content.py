@@ -7,6 +7,7 @@ class ContentResponse(BaseModel):
     title: str
     description: str | None
     status: str
+    thumbnail_url: str | None = None
     categories: list[CategoryResponse] = []
     created_at: datetime
 

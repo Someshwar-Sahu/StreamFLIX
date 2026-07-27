@@ -12,57 +12,86 @@ router = APIRouter(prefix="/ratings", tags=["ratings"])
 
 
 @router.post("")
-async def rate_content(
+async def rate(
     payload: RatingIn,
     db: AsyncSession = Depends(get_db),
     profile_id: int = Depends(get_current_profile_id),
 ):
-    stmt = pg_insert(Rating).values(
-        profile_id=profile_id,
-        content_id=payload.content_id,
-        value=payload.value,
-    )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["profile_id", "content_id"],
-        set_={"value": payload.value},
-    )
+    if payload.content_id is not None:
+        stmt = pg_insert(Rating).values(
+            profile_id=profile_id, content_id=payload.content_id, series_id=None, value=payload.value,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["profile_id", "content_id"],
+            index_where=Rating.content_id.isnot(None),
+            set_={"value": payload.value},
+        )
+    else:
+        stmt = pg_insert(Rating).values(
+            profile_id=profile_id, content_id=None, series_id=payload.series_id, value=payload.value,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["profile_id", "series_id"],
+            index_where=Rating.series_id.isnot(None),
+            set_={"value": payload.value},
+        )
     await db.execute(stmt)
     await db.commit()
     return {"status": "ok"}
 
-
-@router.delete("/{content_id}")
-async def remove_rating(
+@router.delete("/content/{content_id}")
+async def remove_content_rating(
     content_id: int,
     db: AsyncSession = Depends(get_db),
     profile_id: int = Depends(get_current_profile_id),
 ):
-    await db.execute(
-        delete(Rating).where(Rating.profile_id == profile_id).where(Rating.content_id == content_id)
-    )
+    await db.execute(delete(Rating).where(Rating.profile_id == profile_id).where(Rating.content_id == content_id))
     await db.commit()
     return {"status": "removed"}
 
 
-@router.get("/{content_id}", response_model=RatingSummary)
-async def get_rating_summary(
+@router.delete("/series/{series_id}")
+async def remove_series_rating(
+    series_id: int,
+    db: AsyncSession = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
+):
+    await db.execute(delete(Rating).where(Rating.profile_id == profile_id).where(Rating.series_id == series_id))
+    await db.commit()
+    return {"status": "removed"}
+
+
+@router.get("/content/{content_id}", response_model=RatingSummary)
+async def get_content_rating_summary(
     content_id: int,
     db: AsyncSession = Depends(get_db),
     profile_id: int = Depends(get_current_profile_id),
 ):
     result = await db.execute(
-        select(
-            func.count(case((Rating.value == 1, 1))),
-            func.count(case((Rating.value == -1, 1))),
-        ).where(Rating.content_id == content_id)
+        select(func.count(case((Rating.value == 1, 1))), func.count(case((Rating.value == -1, 1))))
+        .where(Rating.content_id == content_id)
     )
     likes, dislikes = result.one()
-
     mine_result = await db.execute(
-        select(Rating.value)
-        .where(Rating.content_id == content_id)
-        .where(Rating.profile_id == profile_id)
+        select(Rating.value).where(Rating.content_id == content_id).where(Rating.profile_id == profile_id)
     )
     mine = mine_result.scalar_one_or_none()
+    return RatingSummary(type="movie", id=content_id, likes=likes or 0, dislikes=dislikes or 0, my_rating=mine)
 
-    return RatingSummary(content_id=content_id, likes=likes or 0, dislikes=dislikes or 0, my_rating=mine)
+
+@router.get("/series/{series_id}", response_model=RatingSummary)
+async def get_series_rating_summary(
+    series_id: int,
+    db: AsyncSession = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
+):
+    result = await db.execute(
+        select(func.count(case((Rating.value == 1, 1))), func.count(case((Rating.value == -1, 1))))
+        .where(Rating.series_id == series_id)
+    )
+    likes, dislikes = result.one()
+    mine_result = await db.execute(
+        select(Rating.value).where(Rating.series_id == series_id).where(Rating.profile_id == profile_id)
+    )
+    mine = mine_result.scalar_one_or_none()
+    return RatingSummary(type="series", id=series_id, likes=likes or 0, dislikes=dislikes or 0, my_rating=mine)

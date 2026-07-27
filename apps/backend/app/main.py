@@ -12,6 +12,7 @@ from app.api.admin_storage import router as admin_storage_router
 from app.api.profile import router as profiles_router
 from app.api.watchlist import router as watchlist_router
 from app.api.ratings import router as ratings_router
+from app.api.series import router as series_router
 
 app = FastAPI(title="StreamFlix API")
 
@@ -29,6 +30,7 @@ app.include_router(admin_storage_router)
 app.include_router(categories_router)
 app.include_router(content_router)
 app.include_router(ratings_router)
+app.include_router(series_router)
 app.include_router(watchlist_router)
 app.include_router(watch_history_router)
 

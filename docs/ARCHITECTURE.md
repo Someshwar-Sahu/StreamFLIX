@@ -168,3 +168,4 @@ streamflix/
 | Phase 0 | Polling over WebSocket/SSE for transcode status | Status changes rarely, simplicity > real-time here |
 | Phase 0 | No DRM | No real/licensed content will be hosted |
 | Phase 0 | No ML recommendations | User has no ML background; "easy tier" (SQL-based) covers real value at this scale |
+| Phase 17 closeout | `ContentResponse` missing `thumbnail_url` | Schema gap, not upload-logic bug — added field so poster data actually serializes |

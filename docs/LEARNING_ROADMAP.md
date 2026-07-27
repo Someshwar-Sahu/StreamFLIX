@@ -18,6 +18,8 @@
 - Polling vs WebSocket vs SSE — trade-offs for status updates
 - React Native vs Flutter — code-sharing vs performance trade-off, why RN fits this project
 - Why recommendation systems have an "easy tier" (SQL-based) vs "hard tier" (ML, out of scope here)
+- Schema/serialization gap vs actual bug — same underlying data can be saved correctly but
+  invisible if the Pydantic response model doesn't declare the field
 
 ## Terminology introduced
 - **HLS/DASH** — adaptive bitrate streaming protocols (video split into chunks at multiple qualities)
