@@ -1,0 +1,17 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base circle with a vibrant, warm yellow color -->
+  <circle cx="50" cy="50" r="46" fill="#FFB703"/>
+
+  <!-- Facial expression changed to deep navy blue for clean, flat UI contrast -->
+  <!-- Winking left eye -->
+  <path d="M 32 50 Q 38 54 44 50" stroke="#023047" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- Open right eye -->
+  <circle cx="68" cy="50" r="6" fill="#023047"/>
+  
+  <!-- Single eyebrow above left eye -->
+  <path d="M 30 40 Q 38 36 46 40" stroke="#023047" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Confident smirk/smile -->
+  <path d="M 36 72 Q 50 80 64 72" stroke="#023047" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

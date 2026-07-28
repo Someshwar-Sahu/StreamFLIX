@@ -203,6 +203,65 @@
 - [ ] Build search bar + category filter UI
 - [ ] Build admin panel UI (users list/role change, storage usage)
 - [ ] Search autocomplete (small, was deferred to this phase from the start)
+## Current phase
+**Phase 18 — COMPLETE (Web UI pass)**
+
+### Phase 18 summary
+- [x] Login/Register — redesigned, cinematic card layout, auth-state guard redirects
+- [x] Profile Picker — built new, marquee-ring avatar grid, 8 default illustrated avatars,
+      staggered entrance animation, hard state-based guard against back-button bypass
+- [x] Nav bar — hidden on `/login` and `/profiles`; admin role added to Upload link visibility
+- [x] Catalog — rebuilt: search + category filter, Trending row, Continue Watching row
+      (with remove/clear), Movies grid, Series grid, all poster-card based
+- [x] Watch — theater layout, watchlist/like/dislike controls wired to backend, styled
+      quality selector
+- [x] Series Detail — built new (didn't exist before): hero + season/episode list,
+      per-episode progress, watchlist/rating controls
+- [x] Upload — rebuilt as tabbed Movie / Series wizard (create series → season → episodes),
+      poster + category fields added (previously missing from UI entirely)
+- [x] Admin panel — built new: user role management table, storage usage dashboard
+
+### Design system established (for Mobile/Desktop parity later)
+- Palette: `#0D1117` void / `#171B24` elevated / `#F2A93B` amber accent / `#2EC4B6` teal
+  secondary / `#F5F5F0` text / `#8A8F98` muted
+- Type: Clash Display (headings) + Inter (body/UI)
+- Signature motif: amber "marquee-bulb" ring on avatars/cards, lights up on hover/select
+- Motion: staggered rise-in on grids, respects `prefers-reduced-motion`
+
+## Pending work
+- [ ] Manual QA pass across all Phase 18 screens (not yet done)
+- [ ] Desktop (Electron) — should inherit Web build near-free, verify after QA
+- [ ] Mobile UI pass — own design pass next, React Native equivalents of above screens
+### Phase 18 — Mobile UI pass (complete)
+- [x] Two-step auth (profile token) ported to mobile: `AuthContext`, `client.js`, `auth.js`
+      extended to mirror Web; `App.tsx` navigator gates Login → ProfilePicker → main stack
+      by swapping the entire Stack.Navigator screen set (no back-button history bug possible
+      here, unlike Web — RN Stack doesn't share history across auth states)
+- [x] ProfilePicker — built new: colored-circle + initial-letter avatars (no react-native-svg
+      dependency added, avoids native rebuild pain per known Android env friction), staggered
+      fade-in via Animated API
+- [x] Catalog — rebuilt: search, category chips, Trending row, Continue Watching row, Movies
+      row, Series row, all via new `PosterCard` RN component
+- [x] Watch — video/resume/progress logic untouched (was already solid), added
+      watchlist/like/dislike pill row + restyled quality chips to match theme
+- [x] SeriesDetail — built new (didn't exist before): hero, season/episode list,
+      watchlist/rating controls, episode tap → Watch screen
+- [x] Upload — rebuilt as tabbed Movie / Series wizard using existing
+      `react-native-image-picker` for both video and poster (no new dependency)
+- [x] Admin — built new: user role chips, storage stat cards
+- [x] **Bug fixed (caught here, also affected Web):** `/media/...` paths from backend are
+      relative. Web's `PosterCard`/`SeriesDetail` were using them directly as `<img src>`,
+      resolving against the Vite dev server instead of the backend — posters were silently
+      broken on Web. Added `resolveMediaUrl()` helper on both Web (`api/media.js`) and
+      Mobile (`api/media.ts`) that prefixes the backend base URL.
+
+## Current phase
+**Phase 18 — COMPLETE across Web, Desktop, Mobile**
+
+## Pending work
+- [ ] Manual QA pass across all screens, all three platforms (not yet done — user is testing
+      tomorrow morning)
+- [ ] Confirm the media-URL fix actually resolves posters correctly once tested
 
 ## Known issues / risks
 - Pre-Phase-10 content has broken `RESOLUTION=?x{h}` metadata, shows "0p" in dropdown — unfixed

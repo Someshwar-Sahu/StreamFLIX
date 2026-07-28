@@ -20,6 +20,19 @@
 - Why recommendation systems have an "easy tier" (SQL-based) vs "hard tier" (ML, out of scope here)
 - Schema/serialization gap vs actual bug — same underlying data can be saved correctly but
   invisible if the Pydantic response model doesn't declare the field
+- `replace: true` on navigate only rewrites one history entry — doesn't prevent multi-step
+  back-button traversal. Correct pattern for auth-gated flows: check current auth state on
+  mount and redirect forward, don't rely on history manipulation alone.
+- FastAPI response models are a hard filter — a field can be saved correctly in the DB and
+  still never appear in any response if the Pydantic schema doesn't declare it.
+- Relative API paths (`/media/...`) only resolve correctly when frontend and backend share
+  an origin. Vite dev server and FastAPI don't by default — any path returned by the backend
+  meant to be loaded directly (images, media) needs to be resolved against the API's base URL
+  explicitly, not assumed to work as a bare relative path.
+- RN Stack Navigator sidesteps the web back-button auth-bypass problem entirely: swapping
+  which screens exist in the stack (based on auth state) removes the old screens from
+  history rather than just adding a new entry on top, so there's no equivalent to
+  `navigate(..., {replace:true})` needed.
 
 ## Terminology introduced
 - **HLS/DASH** — adaptive bitrate streaming protocols (video split into chunks at multiple qualities)

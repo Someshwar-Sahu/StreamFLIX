@@ -26,11 +26,12 @@ export default function Login() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>{mode === 'login' ? 'Login' : 'Register'}</Text>
+      <Text style={styles.logo}>STREAMFLIX</Text>
+      <Text style={styles.header}>{mode === 'login' ? 'Sign In' : 'Create Account'}</Text>
       <TextInput
         style={styles.input}
         placeholder="Email"
-        placeholderTextColor="#888"
+        placeholderTextColor="#8A8F98"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -40,7 +41,7 @@ export default function Login() {
         <TextInput
           style={styles.input}
           placeholder="Username"
-          placeholderTextColor="#888"
+          placeholderTextColor="#8A8F98"
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
@@ -49,18 +50,18 @@ export default function Login() {
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor="#888"
+        placeholderTextColor="#8A8F98"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>{mode === 'login' ? 'Login' : 'Register'}</Text>
+        <Text style={styles.buttonText}>{mode === 'login' ? 'Sign In' : 'Register'}</Text>
       </TouchableOpacity>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'register' : 'login')}>
         <Text style={styles.switchText}>
-          Switch to {mode === 'login' ? 'Register' : 'Login'}
+          {mode === 'login' ? "New here? Create an account" : "Already have an account? Sign in"}
         </Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -68,14 +69,15 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#000', justifyContent: 'center' },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 24 },
+  container: { flex: 1, padding: 24, backgroundColor: '#0D1117', justifyContent: 'center' },
+  logo: { color: '#8A8F98', fontSize: 13, fontWeight: '600', letterSpacing: 2, marginBottom: 16 },
+  header: { fontSize: 28, fontWeight: '700', color: '#F5F5F0', marginBottom: 28 },
   input: {
-    borderWidth: 1, borderColor: '#333', borderRadius: 8, padding: 12,
-    color: '#fff', marginBottom: 12,
+    borderWidth: 1, borderColor: 'rgba(138,143,152,0.25)', borderRadius: 8, padding: 14,
+    color: '#F5F5F0', backgroundColor: '#171B24', marginBottom: 14, fontSize: 15,
   },
-  button: { backgroundColor: '#1e90ff', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  error: { color: 'red', marginTop: 12 },
-  switchText: { color: '#1e90ff', marginTop: 16, textAlign: 'center' },
+  button: { backgroundColor: '#F2A93B', borderRadius: 8, padding: 15, alignItems: 'center', marginTop: 6 },
+  buttonText: { color: '#0D1117', fontWeight: '700', fontSize: 15 },
+  error: { color: '#EF476F', marginTop: 14, fontSize: 13 },
+  switchText: { color: '#8A8F98', marginTop: 20, textAlign: 'center', fontSize: 13, textDecorationLine: 'underline' },
 });

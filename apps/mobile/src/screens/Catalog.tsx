@@ -1,26 +1,21 @@
 import React, { useState, useLayoutEffect, useCallback } from 'react';
-import { FlatList, Text, StyleSheet, ActivityIndicator, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, StyleSheet, ActivityIndicator, TouchableOpacity, View, FlatList, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
+import { getContent, getSeries, getTrending, getCategories } from '../api/catalog';
+import { resolveMediaUrl } from '../api/media';
+import PosterCard from '../components/PosterCard';
 import { useAuth } from '../context/AuthContext';
 
-type Content = {
-  id: number;
-  title: string;
-  status: string;
-};
-
-type HistoryItem = {
-  content_id: number;
-  title: string;
-  progress_seconds: number;
-  duration_seconds: number | null;
-};
-
 export default function Catalog({ navigation }: any) {
-  const [content, setContent] = useState<Content[]>([]);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [content, setContent] = useState<any[]>([]);
+  const [series, setSeries] = useState<any[]>([]);
+  const [trending, setTrending] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [q, setQ] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { logout, role } = useAuth();
 
@@ -28,13 +23,18 @@ export default function Catalog({ navigation }: any) {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: 'row', gap: 16 }}>
-          {role === 'uploader' && (
+          {(role === 'uploader' || role === 'admin') && (
             <TouchableOpacity onPress={() => navigation.navigate('Upload')}>
-              <Text style={{ color: '#1e90ff' }}>Upload</Text>
+              <Text style={{ color: '#F2A93B' }}>Upload</Text>
+            </TouchableOpacity>
+          )}
+          {role === 'admin' && (
+            <TouchableOpacity onPress={() => navigation.navigate('Admin')}>
+              <Text style={{ color: '#F2A93B' }}>Admin</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={logout}>
-            <Text style={{ color: '#1e90ff' }}>Logout</Text>
+            <Text style={{ color: '#F2A93B' }}>Logout</Text>
           </TouchableOpacity>
         </View>
       ),
@@ -42,89 +42,152 @@ export default function Catalog({ navigation }: any) {
   }, [navigation, role]);
 
   function fetchHistory() {
-    api.get('/watch-history')
-      .then((res) => setHistory(res.data))
-      .catch(() => setHistory([]));
+    api.get('/watch-history').then((res) => setHistory(res.data)).catch(() => setHistory([]));
   }
 
   function removeItem(contentId: number) {
-    api.delete(`/watch-history/${contentId}`)
-      .then(() => fetchHistory())
-      .catch(() => {});
+    api.delete(`/watch-history/${contentId}`).then(fetchHistory).catch(() => { });
+  }
+
+  function fetchAll() {
+    getContent({ q: q || undefined, category: activeCategory || undefined }).then(setContent);
+    getSeries().then(setSeries);
+    getTrending().then((t) => setTrending(t.overall || []));
   }
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      api.get('/content')
-        .then((res) => setContent(res.data))
-        .catch((err) => console.log('Error fetching content:', err.message))
-        .finally(() => setLoading(false));
+      getCategories().then(setCategories);
+      Promise.all([
+        getContent({ q: q || undefined, category: activeCategory || undefined }).then(setContent),
+        getSeries().then(setSeries),
+        getTrending().then((t) => setTrending(t.overall || [])),
+      ]).finally(() => setLoading(false));
       fetchHistory();
-    }, [])
+    }, [q, activeCategory])
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#F2A93B" />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {history.length > 0 && (
-        <View style={{ marginBottom: 16 }}>
-          <Text style={styles.header}>Continue Watching</Text>
-          {history.map((item) => {
-            const pct = item.duration_seconds
-              ? Math.min(100, Math.round((item.progress_seconds / item.duration_seconds) * 100))
-              : 0;
-            return (
-              <View key={item.content_id} style={styles.historyRow}>
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  onPress={() => navigation.navigate('Watch', { id: item.content_id, title: item.title })}
-                >
-                  <Text style={styles.itemText}>{item.title}</Text>
-                  <View style={{ height: 4, backgroundColor: '#333', marginTop: 4, width: '100%' }}>
-                    <View style={{ height: 4, backgroundColor: '#1e90ff', width: `${pct}%` }} />
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => removeItem(item.content_id)}>
-                  <Text style={{ color: '#1e90ff', paddingHorizontal: 12 }}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      <Text style={styles.header}>Catalog</Text>
-      <FlatList
-        data={content}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.item}
-            disabled={item.status !== 'ready'}
-            onPress={() => navigation.navigate('Watch', { id: item.id, title: item.title })}
-          >
-            <Text style={styles.itemText}>
-              {item.title} — {item.status}
-            </Text>
+      <ScrollView>
+        <TextInput
+          style={styles.search}
+          placeholder="Search titles..."
+          placeholderTextColor="#8A8F98"
+          value={q}
+          onChangeText={setQ}
+        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+          <TouchableOpacity style={[styles.chip, !activeCategory && styles.chipActive]} onPress={() => setActiveCategory(null)}>
+            <Text style={[styles.chipText, !activeCategory && styles.chipTextActive]}>All</Text>
           </TouchableOpacity>
+          {categories.map((c) => (
+            <TouchableOpacity key={c.id} style={[styles.chip, activeCategory === c.name && styles.chipActive]} onPress={() => setActiveCategory(c.name)}>
+              <Text style={[styles.chipText, activeCategory === c.name && styles.chipTextActive]}>{c.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {trending.length > 0 && (
+          <>
+            <Text style={styles.header}>Trending Now</Text>
+            <FlatList
+              data={trending}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => `${item.type}-${item.id}`}
+              contentContainerStyle={styles.row}
+              renderItem={({ item }) => (
+                <PosterCard
+                  title={item.title}
+                  posterUrl={resolveMediaUrl(item.poster_url)}
+                  onPress={() => navigation.navigate(item.type === 'movie' ? 'Watch' : 'SeriesDetail', item.type === 'movie' ? { id: item.id, title: item.title } : { id: item.id })}
+                />
+              )}
+            />
+          </>
         )}
-      />
+
+        {history.length > 0 && (
+          <>
+            <Text style={styles.header}>Continue Watching</Text>
+            <FlatList
+              data={history}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => String(item.content_id)}
+              contentContainerStyle={styles.row}
+              renderItem={({ item }) => {
+                const pct = item.duration_seconds ? Math.min(100, Math.round((item.progress_seconds / item.duration_seconds) * 100)) : 0;
+                return (
+                  <View>
+                    <PosterCard title={item.title} posterUrl={null} progressPct={pct} onPress={() => navigation.navigate('Watch', { id: item.content_id, title: item.title })} />
+                    <TouchableOpacity onPress={() => removeItem(item.content_id)} style={styles.removeBtn}>
+                      <Text style={styles.removeBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+            />
+          </>
+        )}
+
+        <Text style={styles.header}>Movies</Text>
+        <FlatList
+          data={content}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.row}
+          renderItem={({ item }) => (
+            <PosterCard
+              title={item.title}
+              posterUrl={resolveMediaUrl(item.thumbnail_url)}
+              status={item.status}
+              onPress={() => navigation.navigate('Watch', { id: item.id, title: item.title })}
+            />
+          )}
+        />
+
+        <Text style={styles.header}>Series</Text>
+        <FlatList
+          data={series}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={[styles.row, { marginBottom: 24 }]}
+          renderItem={({ item }) => (
+            <PosterCard
+              title={item.title}
+              posterUrl={resolveMediaUrl(item.poster_url)}
+              onPress={() => navigation.navigate('SeriesDetail', { id: item.id })}
+            />
+          )}
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#000' },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 16 },
-  item: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#333' },
-  itemText: { fontSize: 16, color: '#ccc' },
-  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#333' },
+  container: { flex: 1, backgroundColor: '#0D1117' },
+  search: { margin: 16, marginBottom: 8, padding: 12, backgroundColor: '#171B24', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(138,143,152,0.25)', color: '#F5F5F0', fontSize: 14 },
+  chipRow: { paddingLeft: 16, marginBottom: 8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#171B24', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(138,143,152,0.25)', marginRight: 8 },
+  chipActive: { backgroundColor: '#F2A93B', borderColor: '#F2A93B' },
+  chipText: { color: '#8A8F98', fontSize: 12, fontWeight: '500' },
+  chipTextActive: { color: '#0D1117', fontWeight: '700' },
+  header: { fontSize: 18, fontWeight: '700', color: '#F5F5F0', marginLeft: 16, marginTop: 16, marginBottom: 10 },
+  row: { paddingLeft: 16 },
+  removeBtn: { position: 'absolute', top: 4, left: 4, backgroundColor: 'rgba(13,17,23,0.85)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  removeBtnText: { color: '#8A8F98', fontSize: 9 },
 });

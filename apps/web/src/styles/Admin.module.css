@@ -1,0 +1,95 @@
+.page {
+  min-height: 100vh;
+  background: #0D1117;
+  padding: 40px;
+  font-family: "Inter", sans-serif;
+}
+
+.container { max-width: 900px; margin: 0 auto; }
+
+.heading {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  color: #F5F5F0;
+  margin-bottom: 8px;
+}
+
+.sectionHeading {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #F5F5F0;
+  margin: 36px 0 16px;
+}
+
+.statsRow { display: flex; gap: 16px; margin-bottom: 8px; }
+
+.statCard {
+  flex: 1;
+  background: #171B24;
+  border: 1px solid rgba(242, 169, 59, 0.15);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.statValue {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: #F2A93B;
+}
+
+.statLabel { color: #8A8F98; font-size: 12px; margin-top: 4px; }
+
+.table { width: 100%; border-collapse: collapse; }
+
+.table th {
+  text-align: left;
+  color: #8A8F98;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(138, 143, 152, 0.15);
+}
+
+.table td {
+  padding: 12px;
+  color: #F5F5F0;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(138, 143, 152, 0.08);
+}
+
+.select {
+  padding: 6px 10px;
+  background: #0D1117;
+  border: 1px solid rgba(138, 143, 152, 0.25);
+  border-radius: 6px;
+  color: #F5F5F0;
+  font-size: 13px;
+  outline: none;
+}
+
+.select:focus { border-color: #F2A93B; }
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badgeAdmin { background: rgba(242, 169, 59, 0.15); color: #F2A93B; }
+.badgeUploader { background: rgba(46, 196, 182, 0.15); color: #2EC4B6; }
+.badgeViewer { background: rgba(138, 143, 152, 0.15); color: #8A8F98; }
+
+.note {
+  color: #8A8F98;
+  font-size: 12px;
+  margin-top: 8px;
+  max-width: 600px;
+  line-height: 1.5;
+}

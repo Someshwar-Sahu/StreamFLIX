@@ -169,3 +169,7 @@ streamflix/
 | Phase 0 | No DRM | No real/licensed content will be hosted |
 | Phase 0 | No ML recommendations | User has no ML background; "easy tier" (SQL-based) covers real value at this scale |
 | Phase 17 closeout | `ContentResponse` missing `thumbnail_url` | Schema gap, not upload-logic bug — added field so poster data actually serializes |
+| Phase 18 | Two-step auth token (account token + profile token) wasn't reflected in frontend | Added `profileToken`/`profileId` to `AuthContext`, `client.js` now prefers profile token when present |
+| Phase 18 | Route guarding for login→profiles→home used `navigate(..., {replace:true})` only | Insufficient — back button could still walk further back. Fixed with state-based guards: each page checks real auth state on mount and bounces forward regardless of history depth |
+| Phase 18 | Backend returns relative `/media/...` paths; frontend img/Image tags used them raw | Silently broken on Web (wrong origin), would've been broken on Mobile too if unfixed (no origin at all — bare path with no host). Added `resolveMediaUrl()` per platform to prefix backend base URL |
+| Phase 18 (Mobile) | Needed default avatar images for ProfilePicker, no react-native-svg dependency present | Used colored View circles + initial letter instead of SVG assets — avoids adding a native dependency given documented Android env friction (SDK path, JDK, Metro/npm issues) |

@@ -1,0 +1,129 @@
+.page {
+  min-height: 100vh;
+  background: #0D1117;
+  font-family: "Inter", sans-serif;
+  padding-bottom: 60px;
+}
+
+.hero {
+  display: flex;
+  gap: 32px;
+  padding: 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.poster {
+  width: 220px;
+  height: 320px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #171B24;
+  flex-shrink: 0;
+}
+
+.back {
+  color: #8A8F98;
+  font-size: 13px;
+  text-decoration: none;
+  margin-bottom: 12px;
+  display: inline-block;
+}
+
+.back:hover { color: #F2A93B; }
+
+.title {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 34px;
+  font-weight: 600;
+  color: #F5F5F0;
+  margin-bottom: 12px;
+}
+
+.desc {
+  color: #8A8F98;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  max-width: 560px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  padding: 9px 16px;
+  background: #171B24;
+  border: 1px solid rgba(138, 143, 152, 0.25);
+  border-radius: 20px;
+  color: #8A8F98;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnActive { border-color: #F2A93B; color: #F2A93B; }
+.btn:hover { border-color: #F2A93B; color: #F2A93B; }
+
+.seasons { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
+
+.seasonHeading {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #F5F5F0;
+  margin: 28px 0 14px;
+}
+
+.episodeList { display: flex; flex-direction: column; gap: 10px; }
+
+.episode {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #171B24;
+  border: 1px solid rgba(138, 143, 152, 0.15);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.episode:hover {
+  border-color: #F2A93B;
+  transform: translateX(4px);
+}
+
+.episodeNum {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0D1117;
+  color: #8A8F98;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.episodeTitle {
+  color: #F5F5F0;
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.episodeProgress {
+  width: 80px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.episodeProgressFill { height: 100%; background: #F2A93B; }

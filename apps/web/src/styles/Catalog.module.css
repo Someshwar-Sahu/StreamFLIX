@@ -1,0 +1,85 @@
+.page {
+  min-height: 100vh;
+  background: #0D1117;
+  padding: 32px 40px 60px;
+  font-family: "Inter", sans-serif;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search {
+  padding: 10px 16px;
+  background: #171B24;
+  border: 1px solid rgba(138, 143, 152, 0.25);
+  border-radius: 20px;
+  color: #F5F5F0;
+  font-size: 14px;
+  outline: none;
+  width: 240px;
+  transition: border-color 0.2s ease;
+}
+
+.search:focus { border-color: #F2A93B; }
+
+.chip {
+  padding: 8px 16px;
+  background: #171B24;
+  border: 1px solid rgba(138, 143, 152, 0.25);
+  border-radius: 20px;
+  color: #8A8F98;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chipActive {
+  background: #F2A93B;
+  border-color: #F2A93B;
+  color: #0D1117;
+  font-weight: 600;
+}
+
+.rowHeading {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #F5F5F0;
+  margin: 32px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clearAll {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8A8F98;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.row {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.grid {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.empty {
+  color: #8A8F98;
+  font-size: 14px;
+}

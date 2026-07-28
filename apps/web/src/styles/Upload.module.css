@@ -1,0 +1,98 @@
+.page {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #171B24 0%, #0D1117 70%);
+  padding: 40px;
+  font-family: "Inter", sans-serif;
+}
+
+.container { max-width: 640px; margin: 0 auto; }
+
+.heading {
+  font-family: "Clash Display", "Inter", sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  color: #F5F5F0;
+  margin-bottom: 24px;
+}
+
+.tabs { display: flex; gap: 10px; margin-bottom: 28px; }
+
+.tab {
+  padding: 9px 18px;
+  background: #171B24;
+  border: 1px solid rgba(138, 143, 152, 0.25);
+  border-radius: 20px;
+  color: #8A8F98;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tabActive { background: #F2A93B; border-color: #F2A93B; color: #0D1117; font-weight: 600; }
+
+.card {
+  background: rgba(23, 27, 36, 0.6);
+  border: 1px solid rgba(242, 169, 59, 0.15);
+  border-radius: 16px;
+  padding: 32px;
+  backdrop-filter: blur(12px);
+}
+
+.label {
+  display: block;
+  color: #8A8F98;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 16px 0 6px;
+}
+
+.input, .fileInput {
+  width: 100%;
+  padding: 12px 14px;
+  background: #0D1117;
+  border: 1px solid rgba(138, 143, 152, 0.25);
+  border-radius: 8px;
+  color: #F5F5F0;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus { border-color: #F2A93B; }
+
+.submit {
+  width: 100%;
+  padding: 13px;
+  margin-top: 24px;
+  background: #F2A93B;
+  border: none;
+  border-radius: 8px;
+  color: #0D1117;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.submit:hover { box-shadow: 0 0 24px rgba(242, 169, 59, 0.45); transform: translateY(-1px); }
+.submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.error { color: #EF476F; font-size: 13px; margin-top: 14px; }
+.success { color: #2EC4B6; font-size: 13px; margin-top: 14px; }
+
+.divider {
+  border: none;
+  border-top: 1px solid rgba(138, 143, 152, 0.15);
+  margin: 24px 0;
+}
+
+.subHeading {
+  color: #F5F5F0;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.row { display: flex; gap: 12px; }
+.row > * { flex: 1; }
