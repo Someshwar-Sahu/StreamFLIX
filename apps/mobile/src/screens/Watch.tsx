@@ -1,75 +1,63 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Video, { SelectedVideoTrackType } from 'react-native-video';
 import { useRoute } from '@react-navigation/native';
 import { API_BASE_URL } from '../config';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { getContentDetails, toggleWatchlist, rateContent, clearRating } from '../api/interactions';
+import CustomMobilePlayer from '../components/CustomMobilePlayer';
+import DownloadQualityModal, { QualityOption } from '../components/DownloadQualityModal';
+import DeleteSafetyModal from '../components/DeleteSafetyModal';
+import { addDownloadedItem, isContentDownloaded, removeDownloadedItem } from './DownloadsScreen';
 
-type Track = { index: number; height?: number; bitrate?: number };
-
-export default function Watch() {
+export default function Watch({ navigation }: any) {
   const route = useRoute<any>();
   const { id, title } = route.params;
+  const { role } = useAuth();
   const uri = `${API_BASE_URL}/media/${id}/master.m3u8`;
 
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [tracks, setTracks] = useState<any[]>([
+    { index: 0, height: 1080 },
+    { index: 1, height: 720 },
+    { index: 2, height: 480 },
+  ]);
   const [selectedHeight, setSelectedHeight] = useState<number | 'auto'>('auto');
   const [details, setDetails] = useState<any>(null);
-  const videoRef = useRef<any>(null);
-  const resumeAppliedRef = useRef(false);
-  const lastReportedRef = useRef(0);
-  const currentTimeRef = useRef(0);
+  const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState<boolean>(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const durationRef = useRef(0);
 
   useEffect(() => {
-    getContentDetails(id).then(setDetails).catch(() => {});
+    let timer: any;
+    async function loadDetails() {
+      try {
+        const d = await getContentDetails(id);
+        setDetails(d);
+        if (d && d.status === 'processing') {
+          timer = setTimeout(loadDetails, 3000);
+        }
+      } catch (err) {}
+    }
+    loadDetails();
+    setIsDownloaded(isContentDownloaded(id));
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [id]);
 
-  useEffect(() => {
-    api.get('/watch-history').then((res) => {
-      const entry = res.data.find((h: any) => h.content_id === Number(id));
-      if (entry && entry.progress_seconds > 5) {
-        resumeAppliedRef.current = false;
-        (Watch as any)._resumeSeconds = entry.progress_seconds;
-      } else {
-        (Watch as any)._resumeSeconds = null;
-      }
-    }).catch(() => {
-      (Watch as any)._resumeSeconds = null;
-    });
-  }, [id]);
-
-  function sendProgress() {
-    if (currentTimeRef.current < 1) return;
-    api.post('/watch-history', {
-      content_id: Number(id),
-      progress_seconds: Math.floor(currentTimeRef.current),
-      duration_seconds: durationRef.current ? Math.floor(durationRef.current) : null,
-    }).catch(() => {});
-  }
-
-  function handleLoad(data: any) {
-    durationRef.current = data.duration;
-    const resumeSeconds = (Watch as any)._resumeSeconds;
-    if (resumeSeconds && !resumeAppliedRef.current && videoRef.current) {
-      videoRef.current.seek(resumeSeconds);
-      resumeAppliedRef.current = true;
+  function handleProgressReport(currentTime: number, duration: number) {
+    durationRef.current = duration;
+    if (currentTime > 3) {
+      api.post('/watch-history', {
+        content_id: Number(id),
+        progress_seconds: Math.floor(currentTime),
+        duration_seconds: duration ? Math.floor(duration) : null,
+      }).catch(() => {});
     }
   }
-
-  function handleProgress(data: any) {
-    currentTimeRef.current = data.currentTime;
-    if (data.currentTime - lastReportedRef.current >= 10) {
-      lastReportedRef.current = data.currentTime;
-      sendProgress();
-    }
-  }
-
-  useEffect(() => {
-    return () => { sendProgress(); };
-  }, []);
 
   async function handleWatchlist() {
     await toggleWatchlist(Number(id), details.in_watchlist);
@@ -86,23 +74,91 @@ export default function Watch() {
     }
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <Video
-        ref={videoRef}
-        source={{ uri }}
-        style={styles.video}
-        controls
-        resizeMode="contain"
-        onLoad={handleLoad}
-        onProgress={handleProgress}
-        selectedVideoTrack={
-          selectedHeight === 'auto'
-            ? { type: SelectedVideoTrackType.AUTO }
-            : { type: SelectedVideoTrackType.RESOLUTION, value: selectedHeight }
+  const handleDeleteContent = async () => {
+    await api.delete(`/content/${id}`);
+    navigation.goBack();
+  };
+
+  const handleDownloadBtnPress = () => {
+    if (isDownloaded) {
+      Alert.alert('Downloaded', `"${title}" is saved in your offline storage.`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Download',
+          style: 'destructive',
+          onPress: async () => {
+            await removeDownloadedItem(id);
+            setIsDownloaded(false);
+            setDownloadProgress(null);
+          },
+        },
+      ]);
+    } else {
+      setShowModal(true);
+    }
+  };
+
+  const handleStartDownload = (option: QualityOption) => {
+    setDownloadProgress(10);
+    const interval = setInterval(async () => {
+      setDownloadProgress((prev) => {
+        if (prev === null || prev >= 100) {
+          clearInterval(interval);
+          addDownloadedItem({
+            id: `dl-${id}-${Date.now()}`,
+            contentId: id,
+            title: title,
+            type: 'movie',
+            posterUrl: details?.poster_url || details?.thumbnail_url || null,
+            sizeMb: option.sizeMb,
+            duration: durationRef.current ? `${Math.floor(durationRef.current / 60)}m ${Math.floor(durationRef.current % 60)}s` : '15m',
+            resolution: option.resolution,
+            downloadedAt: new Date().toLocaleDateString(),
+          });
+          setIsDownloaded(true);
+          return 100;
         }
-        onVideoTracks={(e) => setTracks(e.videoTracks)}
-      />
+        return prev + 30;
+      });
+    }, 350);
+  };
+
+  const isProcessing = details && details.status === 'processing';
+  const isFailed = details && details.status === 'failed';
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Player or Processing Banner */}
+      <View style={styles.playerFrameWrap}>
+        {isProcessing ? (
+          <View style={styles.processingCard}>
+            <ActivityIndicator size="large" color="#F2A93B" style={{ marginBottom: 12 }} />
+            <Text style={styles.processingTitle}>⏳ Transcoding in Progress...</Text>
+            <Text style={styles.processingSub}>
+              This video is currently being optimized into multi-bitrate HLS streams for smooth playback.
+            </Text>
+            <View style={styles.statusChip}>
+              <Text style={styles.statusChipText}>STATUS: PROCESSING (AUTO-REFRESHING)</Text>
+            </View>
+          </View>
+        ) : isFailed ? (
+          <View style={styles.processingCard}>
+            <Text style={styles.failedTitle}>❌ Video Transcoding Failed</Text>
+            <Text style={styles.processingSub}>An error occurred while encoding this media file.</Text>
+          </View>
+        ) : (
+          <CustomMobilePlayer
+            sourceUri={uri}
+            title={title}
+            onBackPress={() => navigation.goBack()}
+            onProgressReport={handleProgressReport}
+            tracks={tracks}
+            selectedHeight={selectedHeight}
+            onSelectHeight={setSelectedHeight}
+          />
+        )}
+      </View>
+
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Text style={styles.header}>{title}</Text>
 
@@ -113,46 +169,81 @@ export default function Watch() {
                 {details.in_watchlist ? '✓ Watchlist' : '+ Watchlist'}
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.pillBtn, (isDownloaded || downloadProgress !== null) && styles.pillBtnActive]}
+              onPress={handleDownloadBtnPress}
+              disabled={isProcessing}
+            >
+              <Text style={[styles.pillText, (isDownloaded || downloadProgress !== null) && styles.pillTextActive]}>
+                {isDownloaded
+                  ? '✓ Downloaded'
+                  : downloadProgress === null
+                  ? '📥 Download'
+                  : downloadProgress < 100
+                  ? `⏳ ${downloadProgress}%`
+                  : '✓ Downloaded'}
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={[styles.pillBtn, details.my_rating === 1 && styles.pillBtnActive]} onPress={() => handleRate(1)}>
               <Text style={[styles.pillText, details.my_rating === 1 && styles.pillTextActive]}>👍 {details.likes}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.pillBtn, details.my_rating === -1 && styles.pillBtnActive]} onPress={() => handleRate(-1)}>
               <Text style={[styles.pillText, details.my_rating === -1 && styles.pillTextActive]}>👎 {details.dislikes}</Text>
             </TouchableOpacity>
+
+            {(role === 'uploader' || role === 'admin') && (
+              <TouchableOpacity style={styles.deletePillBtn} onPress={() => setShowDeleteModal(true)}>
+                <Text style={styles.deletePillText}>🗑️ Delete Movie</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
-
-        <View style={styles.qualityRow}>
-          <TouchableOpacity style={[styles.chip, selectedHeight === 'auto' && styles.chipActive]} onPress={() => setSelectedHeight('auto')}>
-            <Text style={styles.chipText}>Auto</Text>
-          </TouchableOpacity>
-          <Text style={styles.qualityLabel}>Playing: {selectedHeight === 'auto' ? 'Auto' : `${selectedHeight}p`}</Text>
-          {tracks
-            .filter((t) => t.height)
-            .sort((a, b) => (b.height || 0) - (a.height || 0))
-            .map((t) => (
-              <TouchableOpacity key={t.index} style={[styles.chip, selectedHeight === t.height && styles.chipActive]} onPress={() => setSelectedHeight(t.height!)}>
-                <Text style={styles.chipText}>{t.height}p</Text>
-              </TouchableOpacity>
-            ))}
-        </View>
       </ScrollView>
+
+      <DownloadQualityModal
+        visible={showModal}
+        title={title}
+        durationSeconds={durationRef.current}
+        onClose={() => setShowModal(false)}
+        onSelectQuality={handleStartDownload}
+      />
+
+      <DeleteSafetyModal
+        visible={showDeleteModal}
+        title={title}
+        onConfirm={handleDeleteContent}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D1117' },
+  playerFrameWrap: { paddingHorizontal: 12, paddingTop: 8 },
+  processingCard: {
+    height: 220,
+    backgroundColor: '#171B24',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(242,169,59,0.4)',
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  processingTitle: { color: '#F2A93B', fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  failedTitle: { color: '#EF476F', fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  processingSub: { color: '#8A8F98', fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 12 },
+  statusChip: { backgroundColor: 'rgba(242,169,59,0.15)', borderWidth: 1, borderColor: '#F2A93B', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  statusChipText: { color: '#F2A93B', fontSize: 10, fontWeight: '700' },
   header: { fontSize: 20, fontWeight: '700', color: '#F5F5F0', marginBottom: 14 },
-  video: { width: '100%', height: 220, backgroundColor: '#000' },
-  interactionRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  interactionRow: { flexDirection: 'row', gap: 10, marginBottom: 18, flexWrap: 'wrap' },
   pillBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(138,143,152,0.25)', backgroundColor: '#171B24' },
   pillBtnActive: { borderColor: '#F2A93B' },
   pillText: { color: '#8A8F98', fontSize: 12, fontWeight: '500' },
   pillTextActive: { color: '#F2A93B' },
-  qualityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  chip: { borderWidth: 1, borderColor: 'rgba(138,143,152,0.25)', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#171B24' },
-  chipActive: { borderColor: '#F2A93B', backgroundColor: 'rgba(242,169,59,0.15)' },
-  chipText: { color: '#F5F5F0', fontSize: 12 },
-  qualityLabel: { color: '#8A8F98', fontSize: 12 },
+  deletePillBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(239,71,111,0.4)', backgroundColor: 'rgba(239,71,111,0.15)', marginLeft: 'auto' },
+  deletePillText: { color: '#EF476F', fontSize: 12, fontWeight: '700' },
 });

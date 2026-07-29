@@ -23,7 +23,7 @@ class Content(Base):
     uploaded_by = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    variants = relationship("ContentVariant", back_populates="content")
+    variants = relationship("ContentVariant", back_populates="content", cascade="all, delete-orphan")
     categories = relationship("Category", secondary=content_categories, backref="contents")
 
 

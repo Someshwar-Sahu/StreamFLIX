@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query, BackgroundTasks
 
-from sqlalchemy import case, select, func
+from sqlalchemy import case, select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -8,7 +8,7 @@ from app.core.db import get_db
 from app.core.config import settings
 from app.core.auth_dep import require_uploader, get_current_profile_id
 
-from app.models.content import Content
+from app.models.content import Content, ContentVariant
 from app.models.watch_history import WatchHistory
 from app.models.watchlist import Watchlist
 from app.models.category import Category
@@ -25,33 +25,56 @@ from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/content", tags=["content"])
 
+async def resolve_category_ids(db: AsyncSession, category_ids: str | None, categoryNames: str | None):
+    ids = []
+    if category_ids:
+        ids.extend([int(x) for x in category_ids.split(",") if x.strip()])
+    if categoryNames:
+        names = [n.strip() for n in categoryNames.split(",") if n.strip()]
+        if names:
+            result = await db.execute(select(Category.id).where(Category.name.in_(names)))
+            ids.extend(result.scalars().all())
+    return list(set(ids))
+
 @router.post("", response_model=ContentResponse)
 async def upload_content(
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
-    description: str = Form(None),
-    category_names: str = Form(None),
+    description: str | None = Form(None),
+    category_ids: str | None = Form(None),
+    categoryNames: str | None = Form(None),
     file: UploadFile = File(...),
-    poster: UploadFile = File(None),
+    poster: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_uploader),
 ):
-    content = Content(title=title, description=description, status="processing", uploaded_by=user_id)
-
-    if category_names:
-        names = [n.strip() for n in category_names.split(",") if n.strip()]
-        if names:
-            result = await db.execute(select(Category).where(Category.name.in_(names)))
-            content.categories = result.scalars().all()
-
+    content = Content(
+        title=title,
+        description=description,
+        status="processing",
+        uploaded_by=user_id,
+    )
     db.add(content)
     await db.commit()
-    await db.refresh(content, attribute_names=["categories"])
+    await db.refresh(content)
+
+    resolved_category_ids = await resolve_category_ids(db, category_ids, categoryNames)
+    if resolved_category_ids:
+        categories = (await db.execute(select(Category).where(Category.id.in_(resolved_category_ids)))).scalars().all()
+        content.categories = categories
+        await db.commit()
 
     raw_dir = settings.media_storage_path / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     raw_path = raw_dir / f"{content.id}_{file.filename}"
+    
+    CHUNK_SIZE = 8 * 1024 * 1024
     with open(raw_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        while True:
+            chunk = await file.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            f.write(chunk)
 
     if poster:
         poster_dir = settings.media_storage_path / str(content.id)
@@ -59,13 +82,21 @@ async def upload_content(
         ext = poster.filename.split(".")[-1] if "." in poster.filename else "jpg"
         poster_path = poster_dir / f"poster.{ext}"
         with open(poster_path, "wb") as f:
-            shutil.copyfileobj(poster.file, f)
+            while True:
+                chunk = await poster.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
         content.thumbnail_url = f"/media/{content.id}/poster.{ext}"
         await db.commit()
 
-    transcode_video.delay(content.id, str(raw_path))
+    # Trigger instant ultrafast background task directly
+    background_tasks.add_task(transcode_video, content.id, str(raw_path))
 
-    return content
+    res = await db.execute(
+        select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
+    )
+    return res.scalar_one()
 
 @router.get("/{content_id}/status", response_model=ContentStatusResponse)
 async def get_status(content_id: int, db: AsyncSession = Depends(get_db)):
@@ -73,9 +104,17 @@ async def get_status(content_id: int, db: AsyncSession = Depends(get_db)):
     return ContentStatusResponse(id=content.id, status=content.status)
 
 @router.get("", response_model=list[ContentResponse])
-async def list_content(q: str | None = None, category: list[str] |  None = Query(None), db: AsyncSession = Depends(get_db)):
-    
-    stmt = select(Content).options(selectinload(Content.categories))
+async def list_content(
+    q: str | None = None,
+    category: list[str] | None = Query(None),
+    include_episodes: bool = False,
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Content).options(selectinload(Content.categories)).distinct()
+
+    if not include_episodes and not q:
+        episode_content_ids_subq = select(Episode.content_id)
+        stmt = stmt.where(Content.id.notin_(episode_content_ids_subq))
 
     if category:
         stmt = stmt.where(Content.categories.any(Category.name.in_(category)))
@@ -91,7 +130,7 @@ async def list_content(q: str | None = None, category: list[str] |  None = Query
         stmt = stmt.order_by(Content.created_at.desc())
 
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 @router.get("/trending", response_model=TrendingResponse)
 async def get_trending(
@@ -330,25 +369,43 @@ async def get_content(content_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Content not found")
     return content
 
+from app.core.auth_dep import require_uploader, get_current_profile_id, get_current_user_role
+
 @router.delete("/{content_id}")
 async def delete_content(
     content_id: int,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_uploader)
+    user_id: int = Depends(require_uploader),
+    user_role: str = Depends(get_current_user_role),
 ):
     content = await db.get(Content, content_id)
     if not content:
         raise HTTPException(404, "Content not found")
 
+    if user_role != "admin" and content.uploaded_by != user_id:
+        raise HTTPException(403, "You can only delete content that you uploaded")
+
     content_dir = settings.media_storage_path / str(content_id)
     if content_dir.exists():
-        shutil.rmtree(content_dir)
+        try:
+            shutil.rmtree(content_dir)
+        except Exception:
+            pass
 
     raw_dir = settings.media_storage_path / "raw"
     if raw_dir.exists():
         for f in raw_dir.glob(f"{content_id}_*"):
-            f.unlink()
+            try:
+                f.unlink()
+            except Exception:
+                pass
         
+    await db.execute(delete(ContentVariant).where(ContentVariant.content_id == content_id))
+    await db.execute(delete(Rating).where(Rating.content_id == content_id))
+    await db.execute(delete(WatchHistory).where(WatchHistory.content_id == content_id))
+    await db.execute(delete(Watchlist).where(Watchlist.content_id == content_id))
+    await db.execute(delete(Episode).where(Episode.content_id == content_id))
+
     await db.delete(content)
     await db.commit()
     return {"status": "deleted"}

@@ -1,0 +1,96 @@
+.nav-header {
+  height: 64px;
+  background-color: rgba(13, 17, 23, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.nav-logo {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #F5F5F0;
+  text-decoration: none;
+  letter-spacing: -0.5px;
+}
+
+.nav-logo span {
+  color: #F2A93B;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  color: #8A8F98;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #F5F5F0;
+}
+
+.nav-link.active {
+  font-weight: 600;
+  border-bottom: 2px solid #F2A93B;
+  padding-bottom: 4px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #F5F5F0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #171B24;
+  border: 1px solid rgba(242, 169, 59, 0.3);
+}
+
+.profile-bulb-ring {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #F2A93B;
+  box-shadow: 0 0 8px #F2A93B;
+}
+
+.nav-logout-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #8A8F98;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.nav-logout-btn:hover {
+  color: #F5F5F0;
+  border-color: rgba(255, 255, 255, 0.4);
+}

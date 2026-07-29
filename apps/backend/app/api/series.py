@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select, func, case
@@ -6,7 +6,7 @@ import shutil
 
 from app.core.db import get_db
 from app.core.config import settings
-from app.core.auth_dep import require_uploader, get_current_profile_id
+from app.core.auth_dep import require_uploader, get_current_profile_id, get_current_user_role
 
 from app.models.series import Series, Season, Episode
 from app.models.content import Content
@@ -88,10 +88,14 @@ async def create_season(
     season_number: int = Form(...),
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_uploader),
+    user_role: str = Depends(get_current_user_role),
 ):
     series = await db.get(Series, series_id)
     if not series:
         raise HTTPException(404, "Series not found")
+
+    if user_role != "admin" and series.uploaded_by != user_id:
+        raise HTTPException(403, "You can only add seasons to a series you created")
 
     existing = await db.execute(
         select(Season).where(Season.series_id == series_id).where(Season.season_number == season_number)
@@ -110,12 +114,21 @@ async def create_season(
 async def upload_episode(
     series_id: int,
     season_id: int,
+    background_tasks: BackgroundTasks,
     episode_number: int = Form(...),
     title: str = Form(None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_uploader),
+    user_role: str = Depends(get_current_user_role),
 ):
+    series = await db.get(Series, series_id)
+    if not series:
+        raise HTTPException(404, "Series not found")
+
+    if user_role != "admin" and series.uploaded_by != user_id:
+        raise HTTPException(403, "You can only upload episodes to a series you created")
+
     season = await db.get(Season, season_id)
     if not season or season.series_id != series_id:
         raise HTTPException(404, "Season not found for this series")
@@ -138,10 +151,15 @@ async def upload_episode(
     raw_dir = settings.media_storage_path / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     raw_path = raw_dir / f"{content.id}_{file.filename}"
+    CHUNK_SIZE = 8 * 1024 * 1024
     with open(raw_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        while True:
+            chunk = await file.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            f.write(chunk)
 
-    transcode_video.delay(content.id, str(raw_path))
+    background_tasks.add_task(transcode_video, content.id, str(raw_path))
 
     episode = Episode(
         season_id=season_id,
@@ -259,3 +277,21 @@ async def get_series_similar(
         + [DiscoverItem(type="series", id=s.id, title=s.title, poster_url=s.poster_url) for s in series_rows]
     )
     return combined[:limit]
+
+@router.delete("/{series_id}")
+async def delete_series(
+    series_id: int,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+    user_role: str = Depends(get_current_user_role),
+):
+    series = await db.get(Series, series_id)
+    if not series:
+        raise HTTPException(404, "Series not found")
+    
+    if user_role != "admin" and series.uploaded_by != user_id:
+        raise HTTPException(403, "You can only delete series that you uploaded")
+    
+    await db.delete(series)
+    await db.commit()
+    return {"status": "deleted"}

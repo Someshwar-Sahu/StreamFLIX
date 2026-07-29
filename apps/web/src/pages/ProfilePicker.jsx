@@ -3,13 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { getProfiles, selectProfile } from "../api/profiles";
 import { useAuth } from "../api/AuthContext";
 import { getToken } from "../api/auth";
+import ProfileModal from "../components/ProfileModal";
+import { getValidAvatarUrl } from "../utils/avatar";
 import styles from "../styles/ProfilePicker.module.css";
 
 export default function ProfilePicker() {
     const [profiles, setProfiles] = useState([]);
     const [error, setError] = useState("");
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const navigate = useNavigate();
-    const { selectProfile: setProfileToken, profileToken } = useAuth();
+    const { selectProfile: setProfileToken, profileToken, role } = useAuth();
+
+    const isAdminOrUploader = role === "admin" || role === "uploader";
 
     useEffect(() => {
         if (!getToken()) {
@@ -35,38 +40,51 @@ export default function ProfilePicker() {
         }
     }
 
+    const displayedProfiles = isAdminOrUploader ? profiles.slice(0, 1) : profiles;
+
     return (
         <div className={styles.stage}>
-            <div className={styles.logo}>StramFlix</div>
+            <div className={styles.logo}>StreamFlix</div>
             <h1 className={styles.heading}>Who's Watching?</h1>
             <div className={styles.grid}>
-                {profiles.map((p, i) => (
+                {displayedProfiles.map((p, i) => {
+                    const avatarSrc = getValidAvatarUrl(p.avatar_url, p.id);
+                    return (
+                        <button
+                            key={p.id}
+                            className={styles.tile}
+                            style={{ animationDelay: `${i * 60}ms` }}
+                            onClick={() => handlePick(p.id)}
+                        >
+                            <div className={styles.ring}>
+                                <img
+                                    src={avatarSrc}
+                                    alt={p.name}
+                                    className={styles.avatarImg}
+                                    onError={(e) => {
+                                        e.currentTarget.src = getValidAvatarUrl(null, p.id);
+                                    }}
+                                />
+                            </div>
+                            <span className={styles.name}>{p.name}</span>
+                        </button>
+                    );
+                })}
+
+                {!isAdminOrUploader && (
                     <button
-                        key={p.id}
                         className={styles.tile}
-                        style={{ animationDelay: `${i * 60}ms` }}
-                        onClick={() => handlePick(p.id)}
+                        style={{ animationDelay: `${displayedProfiles.length * 60}ms` }}
+                        onClick={() => setIsCreateModalOpen(true)}
                     >
-                        <div className={styles.ring}>
-                            <img
-                                src={p.avatar_url || "/avatars/avatar-1.svg"}
-                                alt={p.name}
-                                className={styles.avatarImg}
-                            />
-                        </div>
-                        <span className={styles.name}>{p.name}</span>
+                        <div className={styles.addRing}>+</div>
+                        <span className={styles.name}>Add Profile</span>
                     </button>
-                ))}
-                <button
-                    className={styles.tile}
-                    style={{ animationDelay: `${profiles.length * 60}ms` }}
-                    onClick={() => navigate("/profiles/new")}
-                >
-                    <div className={styles.addRing}>+</div>
-                    <span className={styles.name}>Add Profile</span>
-                </button>
+                )}
             </div>
             {error && <p className={styles.error}>{error}</p>}
+
+            <ProfileModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
         </div>
-    )
+    );
 }

@@ -1,0 +1,84 @@
+.myspace-header-card {
+  background: rgba(23, 27, 36, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.myspace-avatar-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 40px;
+  overflow: hidden;
+  border: 3px solid #F2A93B;
+  box-shadow: 0 0 24px rgba(242, 169, 59, 0.4);
+  flex-shrink: 0;
+  background: #171B24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.myspace-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.myspace-avatar-circle {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #F2A93B, #FF6B6B);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0D1117;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.myspace-info {
+  flex: 1;
+}
+
+.myspace-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #F5F5F0;
+  margin-bottom: 12px;
+}
+
+.myspace-quick-pills {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.myspace-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  color: #F5F5F0;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+
+.myspace-pill:hover {
+  background: rgba(242, 169, 59, 0.15);
+  border-color: #F2A93B;
+  color: #F2A93B;
+  transform: translateY(-2px);
+}

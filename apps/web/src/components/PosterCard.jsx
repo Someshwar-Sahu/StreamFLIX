@@ -1,25 +1,34 @@
 import { Link } from "react-router-dom";
+import { resolveMediaUrl } from "../api/media";
 import styles from "../styles/PosterCard.module.css";
 
-export default function PosterCard({ to, title, posterUrl, status, progressPct }) {
-  const clickable = status ? status === "ready" : true;
+export default function PosterCard({ to, title, posterUrl, status, progressPct, item }) {
+  const finalTitle = title || item?.title || "Untitled";
+  const rawPoster = posterUrl || item?.poster_url || item?.thumbnail_url || item?.posterUrl;
+  const finalPoster = resolveMediaUrl(rawPoster);
+  const finalStatus = status || item?.status;
+  const itemType = item?.type || "movie";
+  const itemId = item?.id;
+  const finalTo = to || (itemType === "series" ? `/series/${itemId}` : `/watch/${itemId}`);
+
+  const clickable = finalStatus ? finalStatus === "ready" : true;
   const card = (
     <div className={styles.card}>
       <div className={styles.posterWrap}>
-        {posterUrl ? (
-          <img src={posterUrl} alt={title} className={styles.poster} />
+        {finalPoster ? (
+          <img src={finalPoster} alt={finalTitle} className={styles.poster} />
         ) : (
-          <div className={styles.placeholder}>{title[0]}</div>
+          <div className={styles.placeholder}>{finalTitle[0]?.toUpperCase()}</div>
         )}
-        {status && status !== "ready" && <span className={styles.badge}>{status}</span>}
+        {finalStatus && finalStatus !== "ready" && <span className={styles.badge}>{finalStatus}</span>}
         {progressPct != null && (
           <div className={styles.progressTrack}>
             <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
           </div>
         )}
       </div>
-      <p className={styles.title}>{title}</p>
+      <p className={styles.title}>{finalTitle}</p>
     </div>
   );
-  return clickable ? <Link to={to} className={styles.link}>{card}</Link> : card;
+  return clickable ? <Link to={finalTo} className={styles.link}>{card}</Link> : card;
 }

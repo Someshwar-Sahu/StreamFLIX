@@ -35,3 +35,13 @@ export async function rateSeries(seriesId: number, value: number) {
 export async function clearSeriesRating(seriesId: number) {
   return api.delete(`/ratings/series/${seriesId}`);
 }
+
+export async function getWatchHistory() {
+  const res = await api.get('/watch-history');
+  return res.data;
+}
+
+export async function getWatchlist() {
+  const res = await api.get('/watchlist');
+  return res.data;
+}

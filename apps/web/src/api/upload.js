@@ -1,13 +1,23 @@
 import api from "./client";
 
-export async function uploadMovie({ title, description, categoryNames, file, poster }) {
+export async function uploadMovie({ title, description, categoryNames, file, poster, onProgress }) {
   const fd = new FormData();
   fd.append("title", title);
   if (description) fd.append("description", description);
   if (categoryNames) fd.append("category_names", categoryNames);
   fd.append("file", file);
   if (poster) fd.append("poster", poster);
-  return api.post("/content", fd, { headers: { "Content-Type": "multipart/form-data" } });
+  return api.post("/content", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const loadedMb = (progressEvent.loaded / (1024 * 1024)).toFixed(1);
+        const totalMb = (progressEvent.total / (1024 * 1024)).toFixed(1);
+        onProgress({ percent, loadedMb, totalMb });
+      }
+    },
+  });
 }
 
 export async function createSeries({ title, description, categoryNames, poster }) {
@@ -27,10 +37,20 @@ export async function createSeason(seriesId, seasonNumber) {
   return res.data;
 }
 
-export async function uploadEpisode(seriesId, seasonId, { episodeNumber, title, file }) {
+export async function uploadEpisode(seriesId, seasonId, { episodeNumber, title, file, onProgress }) {
   const fd = new FormData();
   fd.append("episode_number", episodeNumber);
   if (title) fd.append("title", title);
   fd.append("file", file);
-  return api.post(`/series/${seriesId}/seasons/${seasonId}/episodes`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+  return api.post(`/series/${seriesId}/seasons/${seasonId}/episodes`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const loadedMb = (progressEvent.loaded / (1024 * 1024)).toFixed(1);
+        const totalMb = (progressEvent.total / (1024 * 1024)).toFixed(1);
+        onProgress({ percent, loadedMb, totalMb });
+      }
+    },
+  });
 }

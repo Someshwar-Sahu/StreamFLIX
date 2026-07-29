@@ -2,13 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
+import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { getSeriesDetails, toggleSeriesWatchlist, rateSeries, clearSeriesRating } from '../api/interactions';
 import { resolveMediaUrl } from '../api/media';
+import DeleteSafetyModal from '../components/DeleteSafetyModal';
 
 export default function SeriesDetail({ navigation }: any) {
   const route = useRoute<any>();
   const { id } = route.params;
+  const { role } = useAuth();
   const [data, setData] = useState<any>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     getSeriesDetails(id).then(setData).catch(() => {});
@@ -31,6 +36,11 @@ export default function SeriesDetail({ navigation }: any) {
       setData((d: any) => ({ ...d, my_rating: value }));
     }
   }
+
+  const handleDeleteSeries = async () => {
+    await api.delete(`/series/${id}`);
+    navigation.goBack();
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -59,6 +69,12 @@ export default function SeriesDetail({ navigation }: any) {
           <TouchableOpacity style={[styles.pillBtn, my_rating === -1 && styles.pillBtnActive]} onPress={() => handleRate(-1)}>
             <Text style={[styles.pillText, my_rating === -1 && styles.pillTextActive]}>👎 {dislikes}</Text>
           </TouchableOpacity>
+
+          {(role === 'uploader' || role === 'admin') && (
+            <TouchableOpacity style={styles.deletePillBtn} onPress={() => setShowDeleteModal(true)}>
+              <Text style={styles.deletePillText}>🗑️ Delete Series</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {series.seasons.map((season: any) => (
@@ -81,6 +97,13 @@ export default function SeriesDetail({ navigation }: any) {
           </View>
         ))}
       </ScrollView>
+
+      <DeleteSafetyModal
+        visible={showDeleteModal}
+        title={series.title}
+        onConfirm={handleDeleteSeries}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -93,11 +116,13 @@ const styles = StyleSheet.create({
   placeholderLetter: { fontSize: 36, fontWeight: '700', color: '#8A8F98' },
   title: { fontSize: 20, fontWeight: '700', color: '#F5F5F0', marginBottom: 8 },
   desc: { fontSize: 13, color: '#8A8F98', lineHeight: 18 },
-  interactionRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  interactionRow: { flexDirection: 'row', gap: 10, marginBottom: 20, flexWrap: 'wrap' },
   pillBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(138,143,152,0.25)', backgroundColor: '#171B24' },
   pillBtnActive: { borderColor: '#F2A93B' },
   pillText: { color: '#8A8F98', fontSize: 12, fontWeight: '500' },
   pillTextActive: { color: '#F2A93B' },
+  deletePillBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(239,71,111,0.4)', backgroundColor: 'rgba(239,71,111,0.15)', marginLeft: 'auto' },
+  deletePillText: { color: '#EF476F', fontSize: 12, fontWeight: '700' },
   seasonHeading: { fontSize: 16, fontWeight: '700', color: '#F5F5F0', marginTop: 16, marginBottom: 10 },
   episode: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#171B24', borderRadius: 8, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(138,143,152,0.1)' },
   epNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#0D1117', alignItems: 'center', justifyContent: 'center', marginRight: 12 },

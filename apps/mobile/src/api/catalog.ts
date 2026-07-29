@@ -10,6 +10,11 @@ export async function getSeries() {
   return res.data;
 }
 
+export async function getSeriesDetail(id: number | string) {
+  const res = await api.get(`/series/${id}`);
+  return res.data;
+}
+
 export async function getTrending() {
   const res = await api.get('/content/trending');
   return res.data;

@@ -1,4 +1,8 @@
-.link { text-decoration: none; }
+.link {
+  text-decoration: none;
+  display: inline-block;
+  width: 160px;
+}
 
 .card {
   width: 160px;
@@ -76,4 +80,5 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
 }

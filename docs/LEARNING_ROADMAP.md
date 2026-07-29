@@ -32,7 +32,8 @@
 - RN Stack Navigator sidesteps the web back-button auth-bypass problem entirely: swapping
   which screens exist in the stack (based on auth state) removes the old screens from
   history rather than just adding a new entry on top, so there's no equivalent to
-  `navigate(..., {replace:true})` needed.
+- Phase 19: Shared monorepo packages (`@streamflix/types`, `@streamflix/api-client`, `@streamflix/ui`) for type safety and API client reuse across Web and Mobile.
+- Phase 19: Offline HLS video download engine architecture in React Native (downloading master playlist -> variant playlist -> segment `.ts` chunks to local file storage).
 
 ## Terminology introduced
 - **HLS/DASH** — adaptive bitrate streaming protocols (video split into chunks at multiple qualities)

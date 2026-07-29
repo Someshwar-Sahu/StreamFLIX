@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProfiles, selectProfile } from '../api/profiles';
 import { useAuth } from '../context/AuthContext';
@@ -29,10 +29,12 @@ function ProfileTile({ profile, index, onPress }: { profile: Profile; index: num
   );
 }
 
-export default function ProfilePicker() {
+export default function ProfilePicker({ navigation }: any) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [error, setError] = useState('');
-  const { selectProfile: setProfileToken } = useAuth();
+  const { selectProfile: setProfileToken, role } = useAuth();
+
+  const isAdminOrUploader = role === 'admin' || role === 'uploader';
 
   useEffect(() => {
     getProfiles().then(setProfiles).catch(() => setError("Couldn't load profiles."));
@@ -47,19 +49,30 @@ export default function ProfilePicker() {
     }
   }
 
+  const displayedProfiles = isAdminOrUploader ? profiles.slice(0, 1) : profiles;
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.logo}>STREAMFLIX</Text>
       <Text style={styles.heading}>Who's Watching?</Text>
-      <FlatList
-        data={profiles}
-        numColumns={3}
-        keyExtractor={(p) => String(p.id)}
-        contentContainerStyle={styles.grid}
-        renderItem={({ item, index }) => (
-          <ProfileTile profile={item} index={index} onPress={() => handlePick(item.id)} />
+      <View style={styles.gridContainer}>
+        {displayedProfiles.map((p, idx) => (
+          <ProfileTile key={p.id} profile={p} index={idx} onPress={() => handlePick(p.id)} />
+        ))}
+
+        {!isAdminOrUploader && (
+          <TouchableOpacity
+            style={styles.addTile}
+            onPress={() => navigation.navigate('ProfileManage')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.addRing}>
+              <Text style={styles.addPlus}>+</Text>
+            </View>
+            <Text style={styles.name}>Add Profile</Text>
+          </TouchableOpacity>
         )}
-      />
+      </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </SafeAreaView>
   );
@@ -69,14 +82,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D1117', paddingTop: 40, alignItems: 'center' },
   logo: { color: '#8A8F98', fontSize: 13, fontWeight: '600', letterSpacing: 2, marginBottom: 20 },
   heading: { fontSize: 26, fontWeight: '700', color: '#F5F5F0', marginBottom: 28 },
-  grid: { justifyContent: 'center' },
-  tile: { alignItems: 'center', width: 110, marginBottom: 24 },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16 },
+  tile: { alignItems: 'center', width: 100, marginBottom: 20 },
+  addTile: { alignItems: 'center', width: 100, marginBottom: 20 },
   ring: {
-    width: 84, height: 84, borderRadius: 42, borderWidth: 3, borderColor: 'rgba(242,169,59,0.4)',
+    width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: 'rgba(242,169,59,0.4)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
   },
-  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: '#0D1117', fontSize: 28, fontWeight: '700' },
+  addRing: {
+    width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
+    borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  },
+  addPlus: { color: '#F5F5F0', fontSize: 32, fontWeight: '300' },
+  avatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { color: '#0D1117', fontSize: 26, fontWeight: '700' },
   name: { color: '#8A8F98', fontSize: 13, fontWeight: '500' },
   error: { color: '#EF476F', marginTop: 16, fontSize: 13 },
 });

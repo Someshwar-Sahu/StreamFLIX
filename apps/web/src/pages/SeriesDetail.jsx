@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import api from "../api/client";
+import { useAuth } from "../api/AuthContext";
 import { getSeriesDetails, toggleSeriesWatchlist, rateSeries, clearSeriesRating } from "../api/interactions";
+import DeleteSafetyModal from "../components/DeleteSafetyModal";
 import styles from "../styles/SeriesDetail.module.css";
 import { resolveMediaUrl } from "../api/media";
 
 export default function SeriesDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { role } = useAuth();
   const [data, setData] = useState(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
     getSeriesDetails(id).then(setData).catch(() => {});
@@ -30,6 +36,11 @@ export default function SeriesDetail() {
     }
   }
 
+  const handleDeleteSeries = async () => {
+    await api.delete(`/series/${id}`);
+    navigate('/series');
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.hero}>
@@ -48,6 +59,24 @@ export default function SeriesDetail() {
             <button className={`${styles.btn} ${my_rating === -1 ? styles.btnActive : ""}`} onClick={() => handleRate(-1)}>
               👎 {dislikes}
             </button>
+
+            {(role === 'uploader' || role === 'admin') && (
+              <button
+                onClick={() => setIsDeleteOpen(true)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(239, 71, 111, 0.4)',
+                  background: 'rgba(239, 71, 111, 0.15)',
+                  color: '#EF476F',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  marginLeft: 12,
+                }}
+              >
+                🗑️ Delete Series
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -75,6 +104,13 @@ export default function SeriesDetail() {
           </div>
         ))}
       </div>
+
+      <DeleteSafetyModal
+        isOpen={isDeleteOpen}
+        title={series.title}
+        onConfirm={handleDeleteSeries}
+        onClose={() => setIsDeleteOpen(false)}
+      />
     </div>
   );
 }
