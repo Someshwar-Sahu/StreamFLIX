@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     media_storage_path: Path = BASE_DIR / "media_storage"
 
+    access_token_expire_minutes: int = 43200  # 30 days
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    emails_from_name: str = "StreamFlix Verification"
+
     class Config:
         env_file = ".env"
 

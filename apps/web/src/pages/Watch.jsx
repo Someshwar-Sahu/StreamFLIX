@@ -50,17 +50,53 @@ export default function Watch() {
   };
 
   async function handleWatchlist() {
-    await toggleWatchlist(Number(id), details.in_watchlist);
+    if (!details) return;
     setDetails((d) => ({ ...d, in_watchlist: !d.in_watchlist }));
+    await toggleWatchlist(Number(id), details.in_watchlist);
   }
 
   async function handleRate(value) {
-    if (details.my_rating === value) {
-      await clearRating(Number(id));
-      setDetails((d) => ({ ...d, my_rating: null }));
-    } else {
-      await rateContent(Number(id), value);
-      setDetails((d) => ({ ...d, my_rating: value }));
+    if (!details) return;
+    const oldRating = details.my_rating;
+
+    // Instant Optimistic State Update
+    setDetails((prev) => {
+      let newLikes = prev.likes || 0;
+      let newDislikes = prev.dislikes || 0;
+      let newRating = value;
+
+      if (oldRating === value) {
+        newRating = null;
+        if (value === 1) newLikes = Math.max(0, newLikes - 1);
+        if (value === -1) newDislikes = Math.max(0, newDislikes - 1);
+      } else {
+        if (value === 1) {
+          newLikes += 1;
+          if (oldRating === -1) newDislikes = Math.max(0, newDislikes - 1);
+        } else if (value === -1) {
+          newDislikes += 1;
+          if (oldRating === 1) newLikes = Math.max(0, newLikes - 1);
+        }
+      }
+
+      return {
+        ...prev,
+        my_rating: newRating,
+        likes: newLikes,
+        dislikes: newDislikes,
+      };
+    });
+
+    try {
+      if (oldRating === value) {
+        await clearRating(Number(id));
+      } else {
+        await rateContent(Number(id), value);
+      }
+      const fresh = await getContentDetails(id);
+      setDetails(fresh);
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -78,9 +114,7 @@ export default function Watch() {
         <CustomWebPlayer
           src={videoSrc}
           title={videoTitle}
-          levels={levels}
-          currentLevel={currentLevel}
-          onSelectLevel={handleSelectLevel}
+          onBackPress={() => navigate(-1)}
           onProgressReport={handleProgressReport}
         />
 
@@ -102,6 +136,7 @@ export default function Watch() {
                   color: details.in_watchlist ? '#F2A93B' : '#F5F5F0',
                   cursor: 'pointer',
                   fontWeight: '600',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 {details.in_watchlist ? '✓ Saved in Watchlist' : '+ Add to Watchlist'}
@@ -112,10 +147,11 @@ export default function Watch() {
                   padding: '10px 18px',
                   borderRadius: '20px',
                   border: details.my_rating === 1 ? '1px solid #F2A93B' : '1px solid rgba(255,255,255,0.15)',
-                  background: details.my_rating === 1 ? 'rgba(242,169,59,0.15)' : 'rgba(23,27,36,0.8)',
-                  color: '#F5F5F0',
+                  background: details.my_rating === 1 ? 'rgba(242,169,59,0.2)' : 'rgba(23,27,36,0.8)',
+                  color: details.my_rating === 1 ? '#F2A93B' : '#F5F5F0',
                   cursor: 'pointer',
                   fontWeight: '600',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 👍 {details.likes}
@@ -125,11 +161,12 @@ export default function Watch() {
                 style={{
                   padding: '10px 18px',
                   borderRadius: '20px',
-                  border: details.my_rating === -1 ? '1px solid #F2A93B' : '1px solid rgba(255,255,255,0.15)',
-                  background: details.my_rating === -1 ? 'rgba(242,169,59,0.15)' : 'rgba(23,27,36,0.8)',
-                  color: '#F5F5F0',
+                  border: details.my_rating === -1 ? '1px solid #EF476F' : '1px solid rgba(255,255,255,0.15)',
+                  background: details.my_rating === -1 ? 'rgba(239,71,111,0.2)' : 'rgba(23,27,36,0.8)',
+                  color: details.my_rating === -1 ? '#EF476F' : '#F5F5F0',
                   cursor: 'pointer',
                   fontWeight: '600',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 👎 {details.dislikes}

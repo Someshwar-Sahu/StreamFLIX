@@ -26,7 +26,22 @@ export function logout() {
 
 export async function register(email, username, password) {
   const res = await api.post("/auth/register", { email, username, password });
+  return res.data;
+}
+
+export async function verifyOtp(email, code) {
+  const formData = new FormData();
+  formData.append("email", email);
+  formData.append("code", code);
+  const res = await api.post("/auth/verify-otp", formData);
   return res.data.access_token;
+}
+
+export async function resendOtp(email) {
+  const formData = new FormData();
+  formData.append("email", email);
+  const res = await api.post("/auth/resend-otp", formData);
+  return res.data;
 }
 
 export async function login(email, password) {
@@ -38,7 +53,7 @@ export function saveProfileToken(token){
   localStorage.setItem("profile_token", token)
 }
 
-export function getProfileToken( ){
+export function getProfileToken(){
   return localStorage.getItem("profile_token")
 }
 
@@ -52,6 +67,7 @@ export function getProfileId(){
     return null
   }
 }
+
 export function clearProfileToken() {
   localStorage.removeItem("profile_token")
 }

@@ -20,6 +20,20 @@ export default function ContentRow({ title, items = [], seeAllLink, isProgressRo
     }
   };
 
+  // Deduplicate items & ensure composite unique React key
+  const uniqueItems = items.reduce((acc, item, idx) => {
+    const itemType = item.type || (item.seasons ? 'series' : 'movie');
+    const itemId = item.id || item.content_id || idx;
+    const computedKey = `${itemType}-${itemId}-${idx}`;
+    
+    // Check if exact same item ID & type already exists in this row
+    const exists = acc.some(i => (i.id || i.content_id) === itemId && (i.type || (i.seasons ? 'series' : 'movie')) === itemType);
+    if (!exists) {
+      acc.push({ ...item, _computedKey: computedKey });
+    }
+    return acc;
+  }, []);
+
   return (
     <div className="content-row-container">
       <div className="content-row-header">
@@ -37,8 +51,8 @@ export default function ContentRow({ title, items = [], seeAllLink, isProgressRo
         </button>
 
         <div className="content-row-track" ref={trackRef}>
-          {items.map((item) => (
-            <PosterCard key={item.id || item.content_id} item={item} isProgress={isProgressRow} />
+          {uniqueItems.map((item) => (
+            <PosterCard key={item._computedKey} item={item} isProgress={isProgressRow} />
           ))}
         </div>
 

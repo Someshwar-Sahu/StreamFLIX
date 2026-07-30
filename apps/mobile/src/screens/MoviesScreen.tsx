@@ -46,9 +46,9 @@ export default function MoviesScreen({ navigation }: any) {
           >
             <Text style={[styles.chipText, !selectedCategory && styles.chipTextActive]}>All Movies</Text>
           </TouchableOpacity>
-          {categories.map((c) => (
+          {categories.map((c, index) => (
             <TouchableOpacity
-              key={c.id}
+              key={`cat-${c.id}-${index}`}
               style={[styles.chip, selectedCategory === c.name && styles.chipActive]}
               onPress={() => setSelectedCategory(c.name)}
             >
@@ -97,9 +97,9 @@ export default function MoviesScreen({ navigation }: any) {
               decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 16 }}
             >
-              {movies.map((m) => (
+              {movies.map((m, index) => (
                 <PosterCard
-                  key={m.id}
+                  key={`movie-${m.id}-${index}`}
                   title={m.title}
                   posterUrl={resolveMediaUrl(m.thumbnail_url || m.poster_url)}
                   status={m.status}

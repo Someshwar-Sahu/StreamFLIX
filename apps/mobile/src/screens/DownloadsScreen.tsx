@@ -1,74 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DESIGN_TOKENS } from '@streamflix/ui';
-
-export type DownloadedItem = {
-  id: string;
-  contentId: number | string;
-  title: string;
-  type: 'movie' | 'episode';
-  posterUrl: string | null;
-  sizeMb: number;
-  duration: string;
-  resolution: string;
-  downloadedAt: string;
-};
-
-const STORAGE_KEY = '@streamflix_offline_downloads_v2';
-
-let globalDownloadsStore: DownloadedItem[] = [];
-let listeners: Array<(items: DownloadedItem[]) => void> = [];
-
-async function loadPersistedDownloads() {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      globalDownloadsStore = JSON.parse(raw);
-      listeners.forEach((fn) => fn(globalDownloadsStore));
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Load on app initialization
-loadPersistedDownloads();
-
-async function savePersistedDownloads() {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(globalDownloadsStore));
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-export function isContentDownloaded(contentId: number | string): boolean {
-  return globalDownloadsStore.some((item) => String(item.contentId) === String(contentId));
-}
-
-export async function addDownloadedItem(item: DownloadedItem) {
-  globalDownloadsStore = [item, ...globalDownloadsStore.filter((i) => String(i.contentId) !== String(item.contentId))];
-  await savePersistedDownloads();
-  listeners.forEach((fn) => fn(globalDownloadsStore));
-}
-
-export async function removeDownloadedItem(contentId: number | string) {
-  globalDownloadsStore = globalDownloadsStore.filter((i) => String(i.contentId) !== String(contentId));
-  await savePersistedDownloads();
-  listeners.forEach((fn) => fn(globalDownloadsStore));
-}
+import {
+  DownloadedItem,
+  getDownloadsStore,
+  loadPersistedDownloads,
+  subscribeDownloads,
+  removeDownload,
+} from '../utils/downloads';
 
 export default function DownloadsScreen({ navigation }: any) {
-  const [downloads, setDownloads] = useState<DownloadedItem[]>(globalDownloadsStore);
+  const [downloads, setDownloads] = useState<DownloadedItem[]>(getDownloadsStore());
 
   useEffect(() => {
-    listeners.push(setDownloads);
+    const unsubscribe = subscribeDownloads(setDownloads);
     loadPersistedDownloads();
-    return () => {
-      listeners = listeners.filter((fn) => fn !== setDownloads);
-    };
+    return unsubscribe;
   }, []);
 
   const totalUsedMb = downloads.reduce((acc, item) => acc + item.sizeMb, 0);
@@ -80,7 +28,7 @@ export default function DownloadsScreen({ navigation }: any) {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          removeDownloadedItem(contentId);
+          removeDownload(contentId);
         },
       },
     ]);

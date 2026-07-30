@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getProfiles, selectProfile } from '../api/profiles';
+import { getProfiles, selectProfile, createProfile } from '../api/profiles';
 import { useAuth } from '../context/AuthContext';
+import { DESIGN_TOKENS } from '@streamflix/ui';
 
 const AVATAR_COLORS = ['#FF6B6B', '#4ECDC4', '#FFD166', '#A78BFA', '#F2A93B', '#06D6A0', '#EF476F', '#118AB2'];
 
-type Profile = { id: number; name: string; avatar_url: string | null };
+type Profile = { id: number; name: string; avatar_url?: string | null };
 
 function ProfileTile({ profile, index, onPress }: { profile: Profile; index: number; onPress: () => void }) {
   const anim = React.useRef(new Animated.Value(0)).current;
@@ -31,13 +32,36 @@ function ProfileTile({ profile, index, onPress }: { profile: Profile; index: num
 
 export default function ProfilePicker({ navigation }: any) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { selectProfile: setProfileToken, role } = useAuth();
 
   const isAdminOrUploader = role === 'admin' || role === 'uploader';
 
   useEffect(() => {
-    getProfiles().then(setProfiles).catch(() => setError("Couldn't load profiles."));
+    async function initProfiles() {
+      try {
+        let list = await getProfiles();
+        if (!list || list.length === 0) {
+          // Auto-create default Main Profile if account has no profile
+          const defaultProf = await createProfile({ name: 'Main Profile' });
+          list = [defaultProf];
+        }
+        setProfiles(list);
+        
+        // Auto-select if only 1 profile exists
+        if (list.length === 1) {
+          const tok = await selectProfile(list[0].id);
+          await setProfileToken(tok);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Couldn't load profiles.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    initProfiles();
   }, []);
 
   async function handlePick(profileId: number) {
@@ -55,24 +79,30 @@ export default function ProfilePicker({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       <Text style={styles.logo}>STREAMFLIX</Text>
       <Text style={styles.heading}>Who's Watching?</Text>
-      <View style={styles.gridContainer}>
-        {displayedProfiles.map((p, idx) => (
-          <ProfileTile key={p.id} profile={p} index={idx} onPress={() => handlePick(p.id)} />
-        ))}
 
-        {!isAdminOrUploader && (
-          <TouchableOpacity
-            style={styles.addTile}
-            onPress={() => navigation.navigate('ProfileManage')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.addRing}>
-              <Text style={styles.addPlus}>+</Text>
-            </View>
-            <Text style={styles.name}>Add Profile</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {loading ? (
+        <ActivityIndicator size="large" color={DESIGN_TOKENS.colors.accentAmber} style={{ marginTop: 40 }} />
+      ) : (
+        <View style={styles.gridContainer}>
+          {displayedProfiles.map((p, idx) => (
+            <ProfileTile key={p.id} profile={p} index={idx} onPress={() => handlePick(p.id)} />
+          ))}
+
+          {!isAdminOrUploader && (
+            <TouchableOpacity
+              style={styles.addTile}
+              onPress={() => navigation.navigate('ProfileManage')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.addRing}>
+                <Text style={styles.addPlus}>+</Text>
+              </View>
+              <Text style={styles.name}>Add Profile</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </SafeAreaView>
   );

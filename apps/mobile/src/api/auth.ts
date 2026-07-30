@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {decode as atob} from "base-64";
+import { decode as atob } from "base-64";
 import api from "./client";
 
 const TOKEN_KEY = "auth_token";
@@ -57,7 +57,22 @@ export async function login(email: string, password: string): Promise<string> {
   return res.data.access_token;
 }
 
-export async function register(email: string, username: string, password: string): Promise<string> {
-  const res = await api.post<{ access_token: string }>("/auth/register", { email, username, password });
+export async function register(email: string, username: string, password: string): Promise<{ status: string; message: string }> {
+  const res = await api.post<{ status: string; message: string }>("/auth/register", { email, username, password });
+  return res.data;
+}
+
+export async function verifyOtp(email: string, code: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("email", email);
+  formData.append("code", code);
+  const res = await api.post<{ access_token: string }>("/auth/verify-otp", formData);
   return res.data.access_token;
+}
+
+export async function resendOtp(email: string): Promise<{ status: string; message: string }> {
+  const formData = new FormData();
+  formData.append("email", email);
+  const res = await api.post<{ status: string; message: string }>("/auth/resend-otp", formData);
+  return res.data;
 }
