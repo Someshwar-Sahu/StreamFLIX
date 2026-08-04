@@ -12,3 +12,11 @@ media_storage/*
 !media_storage/.gitkeep
 .vscode/
 .idea/
+
+# Exclude backend database reset utility from git upload (file stays local)
+apps/backend/reset_db.py
+
+# Exclude build outputs & redundant locks
+apps/desktop/web-build/
+apps/desktop/dist/
+apps/mobile/package-lock.json
