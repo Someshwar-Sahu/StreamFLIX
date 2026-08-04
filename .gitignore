@@ -20,5 +20,8 @@ apps/backend/reset_db.py
 apps/desktop/web-build/
 apps/desktop/dist/
 apps/mobile/package-lock.json
-docs/
+
+# Exclude scratch/deployment guides from git upload
+docs/deployment_guide.md
+docs/development_guide.md
 implementation_plan.md
