@@ -20,3 +20,5 @@ apps/backend/reset_db.py
 apps/desktop/web-build/
 apps/desktop/dist/
 apps/mobile/package-lock.json
+docs/
+implementation_plan.md
