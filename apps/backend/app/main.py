@@ -41,6 +41,7 @@ app.include_router(series_router)
 app.include_router(watchlist_router)
 app.include_router(watch_history_router)
 
+settings.media_storage_path.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=str(settings.media_storage_path)), name="media")
 
 from fastapi import Depends
