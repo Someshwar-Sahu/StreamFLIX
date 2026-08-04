@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     emails_from_name: str = "StreamFlix Verification"
 
     class Config:
-        env_file = ".env"
+        env_file = [str(BASE_DIR / ".env"), ".env"]
         extra = "ignore"
 
 settings = Settings()
