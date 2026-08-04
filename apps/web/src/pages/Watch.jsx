@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Hls from "hls.js";
-import api from "../api/client";
+import api, { API_BASE_URL } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import { getContentDetails, toggleWatchlist, rateContent, clearRating } from "../api/interactions";
 import CustomWebPlayer from "../components/CustomWebPlayer";
@@ -18,7 +18,7 @@ export default function Watch() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
-    const src = `http://localhost:8000/media/${id}/master.m3u8`;
+    const src = `${API_BASE_URL}/content/${id}/stream/master.m3u8`;
     if (Hls.isSupported()) {
       const hls = new Hls();
       hlsRef.current = hls;
@@ -39,15 +39,37 @@ export default function Watch() {
     }
   };
 
-  const handleProgressReport = (currentTime, duration) => {
-    if (currentTime > 3) {
+  const lastSyncedTimeRef = useRef(0)
+
+  const handleProgressReport = (currentTime, duration, forceSync = false) => {
+    if (forceSync || (currentTime > 3 && (Math.abs(currentTime - lastSyncedTimeRef.current) >= 15))) {
+      lastSyncedTimeRef.current = currentTime
+
       api.post('/watch-history', {
         content_id: Number(id),
         progress_seconds: Math.floor(currentTime),
-        duration_seconds: duration ? Math.floor(duration) : null,
-      }).catch(() => {});
+        duration_seconds: duration ? Math.floor(duration) : null
+      }).catch(() => {})
     }
-  };
+  }
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (lastSyncedTimeRef.current > 0) {
+        const payload = JSON.stringify({
+          content_id: Number(id),
+          progress_seconds: Math.floor(lastSyncedTimeRef.current),
+        })
+        const blob = new Blob([payload], { type: 'application/json' })
+        navigator.sendBeacon(`${API_BASE_URL}/watch-history`, blob)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    } 
+  }, [id])
 
   async function handleWatchlist() {
     if (!details) return;
@@ -105,7 +127,7 @@ export default function Watch() {
     navigate('/movies');
   };
 
-  const videoSrc = `http://localhost:8000/media/${id}/master.m3u8`;
+  const videoSrc = `${API_BASE_URL}/content/${id}/stream/master.m3u8`;
   const videoTitle = details?.title || `Watching Title #${id}`;
 
   return (
@@ -114,6 +136,7 @@ export default function Watch() {
         <CustomWebPlayer
           src={videoSrc}
           title={videoTitle}
+          initialTime={details?.resume_progress_seconds}
           onBackPress={() => navigate(-1)}
           onProgressReport={handleProgressReport}
         />

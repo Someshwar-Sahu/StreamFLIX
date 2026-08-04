@@ -18,7 +18,7 @@ from app.models.watch_history import WatchHistory
 from app.schemas.series import SeriesOut, SeriesDetailOut, SeasonOut, EpisodeOut
 from app.schemas.discover import DiscoverItem
 
-from app.workers.tasks import transcode_video
+from app.services.category_service import resolve_category_ids
 
 router = APIRouter(prefix="/series", tags=["series"])
 
@@ -35,9 +35,9 @@ async def create_series(
     series = Series(title=title, description=description, uploaded_by=user_id)
 
     if category_names:
-        names = [n.strip() for n in category_names.split(",") if n.strip()]
-        if names:
-            result = await db.execute(select(Category).where(Category.name.in_(names)))
+        resolved_ids = await resolve_category_ids(db, None, category_names)
+        if resolved_ids:
+            result = await db.execute(select(Category).where(Category.id.in_(resolved_ids)))
             series.categories = result.scalars().all()
 
     db.add(series)
@@ -159,7 +159,7 @@ async def upload_episode(
                 break
             f.write(chunk)
 
-    background_tasks.add_task(transcode_video, content.id, str(raw_path))
+    background_tasks.add_task(process_master_upload, content.id, str(raw_path))
 
     episode = Episode(
         season_id=season_id,

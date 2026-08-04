@@ -66,7 +66,6 @@ export default function CategoryTagSelector({ selectedCategories = [], onChange 
 
   return (
     <div style={{ marginBottom: 16, position: 'relative' }}>
-      {/* Selected Tags Pill Row */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
         {selectedCategories.map((cat) => (
           <span key={cat} style={tagStyle}>
@@ -78,7 +77,6 @@ export default function CategoryTagSelector({ selectedCategories = [], onChange 
         ))}
       </div>
 
-      {/* Search Input */}
       <input
         type="text"
         placeholder="Type to search and add categories (e.g. Action, Sci-Fi, Drama)..."
@@ -91,7 +89,6 @@ export default function CategoryTagSelector({ selectedCategories = [], onChange 
         style={inputStyle}
       />
 
-      {/* Dropdown Options */}
       {isOpen && filtered.length > 0 && (
         <div style={dropdownStyle}>
           {filtered.map((cat) => (

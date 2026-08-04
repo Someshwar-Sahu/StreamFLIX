@@ -71,7 +71,6 @@ export default function CategoryTagSelector({ selectedCategories = [], onChange 
 
   return (
     <View style={styles.container}>
-      {/* Selected Tags Row */}
       {selectedCategories.length > 0 && (
         <View style={styles.tagsRow}>
           {selectedCategories.map((cat) => (
@@ -85,7 +84,6 @@ export default function CategoryTagSelector({ selectedCategories = [], onChange 
         </View>
       )}
 
-      {/* Search Input */}
       <TextInput
         style={styles.searchInput}
         placeholder="Type to search and add categories (e.g. Action, Anime)..."
@@ -98,7 +96,6 @@ export default function CategoryTagSelector({ selectedCategories = [], onChange 
         onFocus={() => setIsOpen(true)}
       />
 
-      {/* Dropdown Options */}
       {isOpen && filtered.length > 0 && (
         <View style={styles.dropdown}>
           <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>

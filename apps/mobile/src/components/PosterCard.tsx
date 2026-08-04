@@ -24,7 +24,6 @@ export default function PosterCard({ title, posterUrl, status, progressPct, onPr
           </View>
         )}
 
-        {/* Processing or Failed Overlay Banner Badge */}
         {isProcessing && (
           <View style={[styles.badge, styles.processingBadge]}>
             <Text style={styles.processingBadgeText}>⏳ PROCESSING</Text>

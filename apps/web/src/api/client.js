@@ -1,13 +1,28 @@
 import axios from "axios";
-import { getToken, getProfileToken, logout } from "./auth";
+
+export const getApiBaseUrl = () => {
+  if (import.meta.env?.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    const hostname = window.location.hostname;
+    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "") {
+      const protocol = window.location.protocol.startsWith("https") ? "https" : "http";
+      return `${protocol}://${hostname}:8000`;
+    }
+  }
+  return "http://localhost:8000";
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: API_BASE_URL,
 });
 
 api.interceptors.request.use((config) => {
-  const profileToken = getProfileToken();
-  const token = profileToken || getToken();
+  const profileToken = localStorage.getItem("profile_token");
+  const token = profileToken || localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -20,7 +35,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (!isLoggingOut) {
         isLoggingOut = true;
-        logout();
+        localStorage.removeItem("token");
+        localStorage.removeItem("profile_token");
         
         // Dispatch custom session expired event
         window.dispatchEvent(new CustomEvent("streamflix:session-expired"));

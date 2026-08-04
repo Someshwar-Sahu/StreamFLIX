@@ -35,7 +35,6 @@ export default function SeriesScreen({ navigation }: any) {
           <ActivityIndicator size="large" color={DESIGN_TOKENS.colors.accentAmber} style={{ marginTop: 40 }} />
         ) : (
           <>
-            {/* Featured Series Hero Banner */}
             {featuredSeries && (
               <View style={styles.heroCard}>
                 <ImageBackground
@@ -57,7 +56,6 @@ export default function SeriesScreen({ navigation }: any) {
               </View>
             )}
 
-            {/* Popular Series Horizontal Row */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Featured Series</Text>
             </View>

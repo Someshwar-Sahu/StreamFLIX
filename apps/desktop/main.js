@@ -2,6 +2,8 @@ const { app, BrowserWindow } = require("electron");
 const path = require("path");
 
 function createWindow() {
+  const iconPath = path.join(__dirname, process.platform === "win32" ? "icon.ico" : "icon.png");
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -10,6 +12,7 @@ function createWindow() {
     backgroundColor: "#0D1117",
     show: false,
     title: "StreamFlix",
+    icon: iconPath,
     autoHideMenuBar: true,
   });
 

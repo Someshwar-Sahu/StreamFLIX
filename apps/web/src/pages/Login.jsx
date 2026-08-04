@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, register, verifyOtp, resendOtp } from "../api/auth";
 import { useAuth } from "../api/AuthContext";
+import StreamFlixLogo from "../components/StreamFlixLogo";
 import styles from "../styles/Login.module.css";
 
 export default function Login() {
@@ -62,7 +63,9 @@ export default function Login() {
   return (
     <div className={styles.stage}>
       <div className={styles.card}>
-        <div className={styles.logo}>StreamFlix</div>
+        <div style={{ marginBottom: 24 }}>
+          <StreamFlixLogo size={42} showText={true} />
+        </div>
 
         <h1 className={styles.heading}>
           {mode === "login" ? "Sign In" : mode === "register" ? "Create Account" : "Verify Email"}

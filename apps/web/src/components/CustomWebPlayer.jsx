@@ -2,12 +2,13 @@ import React, { useRef, useState, useEffect } from 'react';
 import Hls from 'hls.js';
 import '../styles/CustomWebPlayer.css';
 
-export default function CustomWebPlayer({ src, title, onProgressReport, onBackPress }) {
+export default function CustomWebPlayer({ src, title, initialTime, onProgressReport, onBackPress }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const hlsRef = useRef(null);
   const hideTimerRef = useRef(null);
   const clickTimerRef = useRef(null);
+  const hasResumedRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -34,7 +35,16 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
     if (!video || !src) return;
 
     if (Hls.isSupported() && (src.includes('.m3u8') || src.includes('/media/'))) {
-      const hls = new Hls();
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 30,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        fragLoadingTimeOut: 15000,
+        fragLoadingMaxRetry: 5,
+        nudgeMaxRetry: 5,
+      });
       hlsRef.current = hls;
       hls.loadSource(src);
       hls.attachMedia(video);
@@ -44,6 +54,21 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
       hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
         setCurrentLevel(data.level);
       });
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              hls.destroy();
+              break;
+          }
+        }
+      });
       return () => {
         hls.destroy();
       };
@@ -51,6 +76,14 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
       video.src = src;
     }
   }, [src]);
+
+  useEffect(() => {
+    if (initialTime && initialTime > 3 && videoRef.current && !hasResumedRef.current) {
+      hasResumedRef.current = true;
+      videoRef.current.currentTime = initialTime;
+      setCurrentTime(initialTime);
+    }
+  }, [initialTime]);
 
   const resetHideTimer = () => {
     setShowControls(true);
@@ -137,10 +170,8 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
     setIsPlaying(!isPlaying);
   };
 
-  // Click / Double Click Handler: Single click toggles controls visible/hidden!
   const handleContainerClick = (e) => {
     if (clickTimerRef.current) {
-      // Double Click Event
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
 
@@ -158,7 +189,6 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
         togglePlay();
       }
     } else {
-      // Single Click Event: Toggles controls visible or hidden!
       clickTimerRef.current = setTimeout(() => {
         setShowControls((prev) => !prev);
         clickTimerRef.current = null;
@@ -187,6 +217,11 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
         width: videoRef.current.videoWidth || 16,
         height: videoRef.current.videoHeight || 9,
       });
+      if (initialTime && initialTime > 3 && !hasResumedRef.current) {
+        hasResumedRef.current = true;
+        videoRef.current.currentTime = initialTime;
+        setCurrentTime(initialTime);
+      }
     }
   };
 
@@ -198,6 +233,9 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
     const newTime = Math.max(0, Math.min(duration, pos * duration));
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
+    if (onProgressReport) {
+      onProgressReport(newTime, duration, true);
+    }
   };
 
   const handleMouseMoveProgress = (e) => {
@@ -235,7 +273,12 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
   const handleQualityChange = (levelIdx) => {
     setCurrentLevel(levelIdx);
     if (hlsRef.current) {
-      hlsRef.current.currentLevel = levelIdx;
+      if (levelIdx === -1) {
+        hlsRef.current.currentLevel = -1;
+      } else {
+        hlsRef.current.currentLevel = levelIdx;
+        hlsRef.current.loadLevel = levelIdx;
+      }
     }
     setShowQualityMenu(false);
   };
@@ -299,7 +342,6 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
         onEnded={() => setIsPlaying(false)}
       />
 
-      {/* Ripple Feedback */}
       {ripple && (
         <div className={`gesture-ripple-overlay ${ripple.type}`}>
           <div className="ripple-circle">
@@ -308,9 +350,7 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
         </div>
       )}
 
-      {/* Hotstar Gradient Overlay */}
       <div className={`hotstar-overlay ${!showControls ? 'hidden' : ''}`}>
-        {/* Top Header Bar */}
         <div className="hotstar-top-bar" onClick={(e) => e.stopPropagation()}>
           <div className="hotstar-top-left">
             {onBackPress && (
@@ -325,7 +365,6 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
           </div>
         </div>
 
-        {/* Hotstar Center Controls */}
         <div className="hotstar-center-controls">
           <button className="hotstar-skip-btn" onClick={(e) => { e.stopPropagation(); skipSeconds(-10); triggerRipple('rewind'); }} title="Rewind 10s">
             <span className="skip-icon">↺</span>
@@ -350,7 +389,6 @@ export default function CustomWebPlayer({ src, title, onProgressReport, onBackPr
           </button>
         </div>
 
-        {/* Hotstar Bottom Controls Bar */}
         <div className="hotstar-bottom-bar" onClick={(e) => e.stopPropagation()}>
           <div
             className="hotstar-progress-container"

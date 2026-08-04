@@ -38,7 +38,6 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     db.add(default_profile)
     await db.commit()
 
-    # Send HTML OTP Email via Gmail SMTP
     send_otp_email(user.email, otp_code)
 
     return {
@@ -100,7 +99,6 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Invalid email or password")
 
-    # Auto-verify existing accounts created before OTP system was introduced
     if getattr(user, "is_verified", None) is None or user.is_verified is False and user.verification_otp is None:
         user.is_verified = True
         await db.commit()

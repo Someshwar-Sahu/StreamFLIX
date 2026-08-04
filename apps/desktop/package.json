@@ -13,7 +13,7 @@
   "build": {
     "appId": "com.streamflix.desktop",
     "productName": "StreamFlix",
-    "files": ["main.js", "web-build/**/*"],
+    "files": ["main.js", "icon.ico", "icon.png", "web-build/**/*"],
     "win": {
       "target": "nsis",
       "icon": "icon.ico"

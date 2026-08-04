@@ -51,11 +51,19 @@ DEPRECATED_COMBINED_NAMES = [
 
 @router.get("", response_model=list[CategoryResponse])
 async def list_categories(db: AsyncSession = Depends(get_db)):
-    # Safely disassociate old deprecated categories from content/series before deletion
     dep_res = await db.execute(select(Category).where(Category.name.in_(DEPRECATED_COMBINED_NAMES)))
     deprecated_cats = dep_res.scalars().all()
     if deprecated_cats:
         for cat in deprecated_cats:
+            category_id = cat.id
+            await db.execute(
+                text("UPDATE content SET category_id = NULL WHERE category_id = :id"),
+                {"id": category_id}
+            )
+            await db.execute(
+                text("UPDATE series SET category_id = NULL WHERE category_id = :id"),
+                {"id": category_id}
+            )
             await db.delete(cat)
         try:
             await db.commit()

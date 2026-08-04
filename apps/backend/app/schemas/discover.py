@@ -3,8 +3,8 @@ from pydantic import BaseModel
 class DiscoverItem(BaseModel):
     type: str
     id: int
-    title: str
-    poster_url: str | None
+    title: str | None = "Untitled"
+    poster_url: str | None = None
 
 class TrendingResponse(BaseModel):
     movies: list[DiscoverItem]

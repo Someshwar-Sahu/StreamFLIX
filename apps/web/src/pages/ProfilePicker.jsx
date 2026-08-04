@@ -5,6 +5,7 @@ import { useAuth } from "../api/AuthContext";
 import { getToken } from "../api/auth";
 import ProfileModal from "../components/ProfileModal";
 import { getValidAvatarUrl } from "../utils/avatar";
+import StreamFlixLogo from "../components/StreamFlixLogo";
 import styles from "../styles/ProfilePicker.module.css";
 
 export default function ProfilePicker() {
@@ -44,7 +45,9 @@ export default function ProfilePicker() {
 
     return (
         <div className={styles.stage}>
-            <div className={styles.logo}>StreamFlix</div>
+            <div style={{ position: 'absolute', top: 28, left: 32 }}>
+                <StreamFlixLogo size={40} showText={true} />
+            </div>
             <h1 className={styles.heading}>Who's Watching?</h1>
             <div className={styles.grid}>
                 {displayedProfiles.map((p, i) => {

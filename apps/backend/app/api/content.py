@@ -1,40 +1,29 @@
+import shutil
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query, BackgroundTasks
-
-from sqlalchemy import case, select, func, delete
+from sqlalchemy import case, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.db import get_db
 from app.core.config import settings
-from app.core.auth_dep import require_uploader, get_current_profile_id
+from app.core.auth_dep import require_uploader, get_current_profile_id, get_current_user_role
 
 from app.models.content import Content, ContentVariant
 from app.models.watch_history import WatchHistory
 from app.models.watchlist import Watchlist
 from app.models.category import Category
 from app.models.rating import Rating
-from app.models.series import Series, Season, Episode
+from app.models.series import Episode
 
 from app.schemas.content import ContentResponse, ContentStatusResponse
-from app.schemas.discover import DiscoverItem, TrendingResponse, LatestResponse
 
-from app.workers.tasks import transcode_video
-
-import shutil
-from datetime import datetime, timedelta
+from app.services.storage import storage_manager
+from app.services.category_service import resolve_category_ids
+from app.services.rating_service import get_content_rating_summary
+from app.services.watch_history_service import get_resume_progress
+from app.workers.tasks import process_master_upload
 
 router = APIRouter(prefix="/content", tags=["content"])
-
-async def resolve_category_ids(db: AsyncSession, category_ids: str | None, categoryNames: str | None):
-    ids = []
-    if category_ids:
-        ids.extend([int(x) for x in category_ids.split(",") if x.strip()])
-    if categoryNames:
-        names = [n.strip() for n in categoryNames.split(",") if n.strip()]
-        if names:
-            result = await db.execute(select(Category.id).where(Category.name.in_(names)))
-            ids.extend(result.scalars().all())
-    return list(set(ids))
 
 @router.post("", response_model=ContentResponse)
 async def upload_content(
@@ -48,6 +37,11 @@ async def upload_content(
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_uploader),
 ):
+    incoming_bytes = file.size or 0
+    active_bucket = storage_manager.get_available_storage_bucket(incoming_bytes)
+    if not active_bucket:
+        raise HTTPException(status_code=400, detail="Upload blocked: Total free storage cap across Backblaze B2 buckets reached. Please add a new free bucket.")
+    
     content = Content(
         title=title,
         description=description,
@@ -58,9 +52,9 @@ async def upload_content(
     await db.commit()
     await db.refresh(content)
 
-    resolved_category_ids = await resolve_category_ids(db, category_ids, categoryNames)
-    if resolved_category_ids:
-        categories = (await db.execute(select(Category).where(Category.id.in_(resolved_category_ids)))).scalars().all()
+    resolved_ids = await resolve_category_ids(db, category_ids, categoryNames)
+    if resolved_ids:
+        categories = (await db.execute(select(Category).where(Category.id.in_(resolved_ids)))).scalars().all()
         content.categories = categories
         await db.commit()
 
@@ -90,18 +84,21 @@ async def upload_content(
         content.thumbnail_url = f"/media/{content.id}/poster.{ext}"
         await db.commit()
 
-    # Trigger instant ultrafast background task directly
-    background_tasks.add_task(transcode_video, content.id, str(raw_path))
+    background_tasks.add_task(process_master_upload, content.id, str(raw_path))
 
     res = await db.execute(
         select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
     )
     return res.scalar_one()
 
+
 @router.get("/{content_id}/status", response_model=ContentStatusResponse)
 async def get_status(content_id: int, db: AsyncSession = Depends(get_db)):
     content = await db.get(Content, content_id)
+    if not content:
+        raise HTTPException(404, "Content not found")
     return ContentStatusResponse(id=content.id, status=content.status)
+
 
 @router.get("", response_model=list[ContentResponse])
 async def list_content(
@@ -132,176 +129,6 @@ async def list_content(
     result = await db.execute(stmt)
     return result.scalars().unique().all()
 
-@router.get("/trending", response_model=TrendingResponse)
-async def get_trending(
-    days: int = 7,
-    limit: int = 10,
-    db: AsyncSession = Depends(get_db),
-):
-    since = datetime.utcnow() - timedelta(days=days)
-    episode_content_ids_subq = select(Episode.content_id)
-
-    movie_views = (
-        select(WatchHistory.content_id, func.count(WatchHistory.id).label("views"))
-        .where(WatchHistory.last_watched_at >= since)
-        .group_by(WatchHistory.content_id)
-        .subquery()
-    )
-    movie_likes = (
-        select(Rating.content_id, func.sum(Rating.value).label("net_likes"))
-        .where(Rating.content_id.isnot(None))
-        .group_by(Rating.content_id)
-        .subquery()
-    )
-    movie_score = (func.coalesce(movie_views.c.views, 0) * 2) + func.coalesce(movie_likes.c.net_likes, 0)
-
-    movie_stmt = (
-        select(Content.id, Content.title, Content.thumbnail_url, movie_score.label("score"))
-        .outerjoin(movie_views, movie_views.c.content_id == Content.id)
-        .outerjoin(movie_likes, movie_likes.c.content_id == Content.id)
-        .where(Content.status == "ready")
-        .where(Content.id.notin_(episode_content_ids_subq))
-        .where(movie_views.c.views.isnot(None))
-    )
-    movie_rows = (await db.execute(movie_stmt)).all()
-
-    ep_to_series = (
-        select(Episode.content_id, Season.series_id)
-        .join(Season, Season.id == Episode.season_id)
-        .subquery()
-    )
-    series_views = (
-        select(ep_to_series.c.series_id, func.count(WatchHistory.id).label("views"))
-        .join(WatchHistory, WatchHistory.content_id == ep_to_series.c.content_id)
-        .where(WatchHistory.last_watched_at >= since)
-        .group_by(ep_to_series.c.series_id)
-        .subquery()
-    )
-    series_likes = (
-        select(Rating.series_id, func.sum(Rating.value).label("net_likes"))
-        .where(Rating.series_id.isnot(None))
-        .group_by(Rating.series_id)
-        .subquery()
-    )
-    series_score = (func.coalesce(series_views.c.views, 0) * 2) + func.coalesce(series_likes.c.net_likes, 0)
-
-    series_stmt = (
-        select(Series.id, Series.title, Series.poster_url, series_score.label("score"))
-        .outerjoin(series_views, series_views.c.series_id == Series.id)
-        .outerjoin(series_likes, series_likes.c.series_id == Series.id)
-        .where(series_views.c.views.isnot(None))
-    )
-    series_rows = (await db.execute(series_stmt)).all()
-
-    movie_items = sorted(
-        [(r.score or 0, DiscoverItem(type="movie", id=r.id, title=r.title, poster_url=r.thumbnail_url)) for r in movie_rows],
-        key=lambda x: x[0], reverse=True,
-    )
-    series_items = sorted(
-        [(r.score or 0, DiscoverItem(type="series", id=r.id, title=r.title, poster_url=r.poster_url)) for r in series_rows],
-        key=lambda x: x[0], reverse=True,
-    )
-    overall = sorted(movie_items + series_items, key=lambda x: x[0], reverse=True)
-
-    return TrendingResponse(
-        movies=[item for _, item in movie_items[:limit]],
-        series=[item for _, item in series_items[:limit]],
-        overall=[item for _, item in overall[:limit]],
-    )
-   
-@router.get("/latest", response_model=LatestResponse)
-async def get_latest(
-    limit: int = 10,
-    db: AsyncSession = Depends(get_db),
-):
-    episode_content_ids_subq = select(Episode.content_id)
-
-    movie_stmt = (
-        select(Content.id, Content.title, Content.thumbnail_url, Content.created_at)
-        .where(Content.status == "ready")
-        .where(Content.id.notin_(episode_content_ids_subq))
-        .order_by(Content.created_at.desc())
-    )
-    movie_rows = (await db.execute(movie_stmt)).all()
-
-    series_stmt = (
-        select(Series.id, Series.title, Series.poster_url, Series.created_at)
-        .order_by(Series.created_at.desc())
-    )
-    series_rows = (await db.execute(series_stmt)).all()
-
-    movie_items = [
-        (r.created_at, DiscoverItem(type="movie", id=r.id, title=r.title, poster_url=r.thumbnail_url))
-        for r in movie_rows
-    ]
-    series_items = [
-        (r.created_at, DiscoverItem(type="series", id=r.id, title=r.title, poster_url=r.poster_url))
-        for r in series_rows
-    ]
-    overall = sorted(movie_items + series_items, key=lambda x: x[0], reverse=True)
-
-    return LatestResponse(
-        movies=[item for _, item in movie_items[:limit]],
-        series=[item for _, item in series_items[:limit]],
-        overall=[item for _, item in overall[:limit]],
-    )
-
-@router.get("/{content_id}/similar", response_model=list[DiscoverItem])
-async def get_similar(
-    content_id: int,
-    limit: int = 10,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Content).options(selectinload(Content.categories)).where(Content.id == content_id)
-    )
-    source = result.scalar_one_or_none()
-    if not source:
-        raise HTTPException(404, "Content not found")
-
-    category_ids = [c.id for c in source.categories]
-    if not category_ids:
-        return []
-
-    movie_likes = (
-        select(Rating.content_id, func.sum(Rating.value).label("net_likes"))
-        .where(Rating.content_id.isnot(None))
-        .group_by(Rating.content_id)
-        .subquery()
-    )
-    movie_stmt = (
-        select(Content)
-        .outerjoin(movie_likes, movie_likes.c.content_id == Content.id)
-        .options(selectinload(Content.categories))
-        .where(Content.categories.any(Category.id.in_(category_ids)))
-        .where(Content.id != content_id)
-        .where(Content.status == "ready")
-        .order_by(func.coalesce(movie_likes.c.net_likes, 0).desc())
-        .limit(limit)
-    )
-    movie_rows = (await db.execute(movie_stmt)).scalars().all()
-
-    series_likes = (
-        select(Rating.series_id, func.sum(Rating.value).label("net_likes"))
-        .where(Rating.series_id.isnot(None))
-        .group_by(Rating.series_id)
-        .subquery()
-    )
-    series_stmt = (
-        select(Series)
-        .outerjoin(series_likes, series_likes.c.series_id == Series.id)
-        .options(selectinload(Series.categories))
-        .where(Series.categories.any(Category.id.in_(category_ids)))
-        .order_by(func.coalesce(series_likes.c.net_likes, 0).desc())
-        .limit(limit)
-    )
-    series_rows = (await db.execute(series_stmt)).scalars().all()
-
-    combined = (
-        [DiscoverItem(type="movie", id=c.id, title=c.title, poster_url=c.thumbnail_url) for c in movie_rows]
-        + [DiscoverItem(type="series", id=s.id, title=s.title, poster_url=s.poster_url) for s in series_rows]
-    )
-    return combined[:limit]
 
 @router.get("/{content_id}/details")
 async def get_content_details(
@@ -316,25 +143,13 @@ async def get_content_details(
     if not content:
         raise HTTPException(404, "Content not found")
 
-    rating_result = await db.execute(
-        select(func.count(case((Rating.value == 1, 1))), func.count(case((Rating.value == -1, 1))))
-        .where(Rating.content_id == content_id)
-    )
-    likes, dislikes = rating_result.one()
-    mine_result = await db.execute(
-        select(Rating.value).where(Rating.content_id == content_id).where(Rating.profile_id == profile_id)
-    )
-    my_rating = mine_result.scalar_one_or_none()
+    ratings = await get_content_rating_summary(db, content_id, profile_id)
+    resume_progress = await get_resume_progress(db, profile_id, content_id)
 
     wl_result = await db.execute(
         select(Watchlist.id).where(Watchlist.profile_id == profile_id).where(Watchlist.content_id == content_id)
     )
     in_watchlist = wl_result.scalar_one_or_none() is not None
-
-    wh_result = await db.execute(
-        select(WatchHistory.progress_seconds).where(WatchHistory.profile_id == profile_id).where(WatchHistory.content_id == content_id)
-    )
-    resume_progress = wh_result.scalar_one_or_none()
 
     category_ids = [c.id for c in content.categories]
     similar = []
@@ -351,13 +166,14 @@ async def get_content_details(
 
     return {
         "content": ContentResponse.model_validate(content),
-        "likes": likes or 0,
-        "dislikes": dislikes or 0,
-        "my_rating": my_rating,
+        "likes": ratings["likes"],
+        "dislikes": ratings["dislikes"],
+        "my_rating": ratings["my_rating"],
         "in_watchlist": in_watchlist,
         "resume_progress_seconds": resume_progress,
         "similar": [ContentResponse.model_validate(c) for c in similar],
     }
+
 
 @router.get("/{content_id}", response_model=ContentResponse)
 async def get_content(content_id: int, db: AsyncSession = Depends(get_db)):
@@ -369,7 +185,6 @@ async def get_content(content_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Content not found")
     return content
 
-from app.core.auth_dep import require_uploader, get_current_profile_id, get_current_user_role
 
 @router.delete("/{content_id}")
 async def delete_content(

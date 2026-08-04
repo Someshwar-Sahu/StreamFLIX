@@ -38,7 +38,6 @@ export default function MoviesScreen({ navigation }: any) {
           <Text style={styles.header}>Movies</Text>
         </View>
 
-        {/* Category Pills */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
           <TouchableOpacity
             style={[styles.chip, !selectedCategory && styles.chipActive]}
@@ -61,7 +60,6 @@ export default function MoviesScreen({ navigation }: any) {
           <ActivityIndicator size="large" color={DESIGN_TOKENS.colors.accentAmber} style={{ marginTop: 40 }} />
         ) : (
           <>
-            {/* Featured Hero Banner */}
             {featuredMovie && !selectedCategory && (
               <View style={styles.heroCard}>
                 <ImageBackground
@@ -83,7 +81,6 @@ export default function MoviesScreen({ navigation }: any) {
               </View>
             )}
 
-            {/* Horizontal Movies Row */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
                 {selectedCategory ? `${selectedCategory} Movies` : 'Popular Movies'}

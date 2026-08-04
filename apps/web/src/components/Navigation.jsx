@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../api/AuthContext";
 import ProfileModal from "./ProfileModal";
+import StreamFlixLogo from "./StreamFlixLogo";
 import { getValidAvatarUrl } from "../utils/avatar";
 import '../styles/Navigation.css';
 
@@ -37,8 +38,8 @@ export default function Navigation() {
         <>
             <header className="nav-header">
                 <div className="nav-left">
-                    <Link to="/" className="nav-logo">
-                        STREAM<span>FLIX</span>
+                    <Link to="/" className="nav-logo" style={{ textDecoration: 'none' }}>
+                        <StreamFlixLogo size={36} showText={true} />
                     </Link>
 
                     <nav className="nav-links">

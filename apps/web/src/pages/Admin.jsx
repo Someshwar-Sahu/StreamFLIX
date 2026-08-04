@@ -30,22 +30,38 @@ export default function Admin() {
 
         {storage && (
           <>
-            <h2 className={styles.sectionHeading}>Storage</h2>
-            <div className={styles.statsRow}>
-              <div className={styles.statCard}>
-                <div className={styles.statValue}>{storage.total_mb} MB</div>
-                <div className={styles.statLabel}>Total Storage</div>
+            <h2 className={styles.sectionHeading}>Cloud Storage Pool Telemetry (Backblaze B2)</h2>
+            {storage.b2_pool && (
+              <div style={{ background: '#171B24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontWeight: 700 }}>
+                  <span>Total Pool Storage</span>
+                  <span style={{ color: storage.b2_pool.percent_used > 90 ? '#FF5252' : storage.b2_pool.percent_used > 70 ? '#F2A93B' : '#00C853' }}>
+                    {storage.b2_pool.total_used_gb} GB / {storage.b2_pool.total_max_gb} GB ({storage.b2_pool.percent_used}%)
+                  </span>
+                </div>
+                <div style={{ height: 10, background: 'rgba(255,255,255,0.08)', borderRadius: 5, overflow: 'hidden', marginBottom: 12 }}>
+                  <div style={{ height: '100%', width: `${storage.b2_pool.percent_used}%`, background: storage.b2_pool.percent_used > 90 ? '#FF5252' : storage.b2_pool.percent_used > 70 ? '#F2A93B' : '#00C853', transition: 'width 0.4s ease' }} />
+                </div>
+                <div style={{ fontSize: 13, color: '#8A8F98' }}>
+                  Remaining Free Space: <strong style={{ color: '#00C853' }}>{storage.b2_pool.total_free_gb} GB</strong>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginTop: 16 }}>
+                  {storage.b2_pool.buckets.map((b) => (
+                    <div key={b.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+                        <span>{b.name}</span>
+                        {b.is_active_target && <span style={{ color: '#00C853', fontSize: 10 }}>[TARGET]</span>}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8A8F98', marginBottom: 8 }}>{b.used_gb} GB / {b.max_gb} GB</div>
+                      <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${b.percent_used}%`, background: b.percent_used > 90 ? '#FF5252' : '#00C853' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className={styles.statCard}>
-                <div className={styles.statValue}>{storage.transcoded_content_mb} MB</div>
-                <div className={styles.statLabel}>Transcoded Content</div>
-              </div>
-              <div className={styles.statCard}>
-                <div className={styles.statValue}>{storage.raw_leftover_mb} MB</div>
-                <div className={styles.statLabel}>Raw Leftover</div>
-              </div>
-            </div>
-            {storage.raw_leftover_mb > 0 && <p className={styles.note}>{storage.raw_leftover_note}</p>}
+            )}
           </>
         )}
 

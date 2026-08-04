@@ -64,7 +64,6 @@ export default function Categories() {
         Add, view, or remove content categories available for uploaders and content classification.
       </p>
 
-      {/* Add Category Form */}
       <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
         <input
           type="text"
@@ -100,7 +99,6 @@ export default function Categories() {
 
       {error && <div style={{ color: '#EF476F', marginBottom: 16 }}>{error}</div>}
 
-      {/* Categories Grid List */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
         {categories.map((cat) => (
           <div

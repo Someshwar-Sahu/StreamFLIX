@@ -45,7 +45,6 @@ export default function DownloadsScreen({ navigation }: any) {
       </View>
 
       <View style={styles.contentWrap}>
-        {/* Storage Indicator Meter */}
         <View style={styles.storageCard}>
           <View style={styles.storageHeader}>
             <Text style={styles.storageTitle}>Device Storage</Text>

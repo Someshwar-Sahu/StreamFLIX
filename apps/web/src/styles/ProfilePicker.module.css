@@ -9,15 +9,32 @@
   font-family: "Inter", sans-serif;
 }
 
-.logo {
+.logoContainer {
   position: absolute;
   top: 28px;
   left: 32px;
-  color: #8A8F98;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoImg {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 10px rgba(242, 169, 59, 0.4));
+}
+
+.logoText {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #F5F5F0;
+  letter-spacing: -0.5px;
+}
+
+.gold {
+  color: #F2A93B;
 }
 
 .heading {

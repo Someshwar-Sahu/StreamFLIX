@@ -34,10 +34,21 @@
   history rather than just adding a new entry on top, so there's no equivalent to
 - Phase 19: Shared monorepo packages (`@streamflix/types`, `@streamflix/api-client`, `@streamflix/ui`) for type safety and API client reuse across Web and Mobile.
 - Phase 19: Offline HLS video download engine architecture in React Native (downloading master playlist -> variant playlist -> segment `.ts` chunks to local file storage).
+- Phase 21 Architecture: Single Master File storage (fMP4/faststart) reducing storage overhead by 70-80% compared to pre-encoding multiple permanent renditions.
+- Phase 21 Architecture: Zero-CPU native 1080p streaming via HTTP Byte-Range requests directly from master MP4 source.
+- Phase 21 Architecture: On-demand 20-second chunk lookahead downscaling for 720p/480p with shared chunk caching across viewers.
+- Phase 21 Architecture: Automatic LRU (Least Recently Used) cache garbage collection for temporary downscaled HLS segments.
+- Phase 21 Architecture: Egress-free cloud media distribution (Oracle Always Free 200 GB + MinIO + Cloudflare CDN).
+- Phase 21 Architecture: Event-driven debounced telemetry (`onSeeking`, `onPause`, `sendBeacon`), reducing network & Redis/DB load by 99%.
 
 ## Terminology introduced
 - **HLS/DASH** — adaptive bitrate streaming protocols (video split into chunks at multiple qualities)
 - **Transcoding** — converting uploaded video into multiple resolutions/bitrates for streaming
+- **Fragmented MP4 (fMP4)** — MP4 format variant enabling HLS segment streaming via HTTP Byte-Range requests directly from a single master file.
+- **Just-In-Time (JIT) Transcoding** — on-demand encoding of specific 20-second video chunks as requested by active viewers, rather than pre-processing the entire video.
+- **LRU Cache Eviction** — garbage collection policy that automatically deletes temporary transcoded chunks when idle for >10-15 mins or when storage limits are approached.
+- **Egress Bandwidth** — outbound network data transfer fees charged by cloud providers when streaming video content to users.
+- **Event-Driven Telemetry** — debounced progress tracking that triggers sync calls strictly on key playback events (`seeking`, `pause`, `tab exit`), preventing Redis/API command spam.
 - **Job queue / async worker** — background processing pattern (Celery + Redis)
 - **Monorepo** — one repo, multiple apps/packages
 - **BFF (Backend-for-Frontend)** — not used yet, may be relevant if mobile/web API needs diverge later

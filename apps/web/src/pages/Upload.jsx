@@ -9,15 +9,13 @@ export default function Upload() {
   const [tab, setTab] = useState("movie");
   const navigate = useNavigate();
 
-  // movie state
   const [mTitle, setMTitle] = useState("");
   const [mDesc, setMDesc] = useState("");
   const [mCategoriesList, setMCategoriesList] = useState([]);
   const [mFile, setMFile] = useState(null);
   const [mPoster, setMPoster] = useState(null);
 
-  // series state
-  const [seriesMode, setSeriesMode] = useState("new"); // "new" or "existing"
+  const [seriesMode, setSeriesMode] = useState("new");
   const [existingSeriesList, setExistingSeriesList] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [seasonsList, setSeasonsList] = useState([]);
@@ -179,7 +177,6 @@ export default function Upload() {
       <div className={styles.container}>
         <h1 className={styles.heading}>Upload Content</h1>
 
-        {/* Content Type Tabs */}
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${tab === "movie" ? styles.tabActive : ""}`} onClick={() => setTab("movie")}>Movie</button>
           <button className={`${styles.tab} ${tab === "series" ? styles.tabActive : ""}`} onClick={() => setTab("series")}>Series</button>

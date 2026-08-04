@@ -86,6 +86,22 @@ always saving correctly, just never serialized in any response).
 - [x] **Sub-Phase 19d — Mobile Downloads UI & Engine Guidance (COMPLETE)**: Built mobile DownloadsScreen.tsx with device storage usage indicator and offline video list. Provided download engine architecture guidance.
 - [x] **Sub-Phase 19e — Admin/Upload Enhancements, Tech Debt & Cross-Platform QA Pass (COMPLETE)**: Refactored `admin_storage.py` directory scanning to run asynchronously via `anyio.to_thread.run_sync`. Cleaned up legacy files and verified cross-platform builds.
 
+**Phase 20 — Milestone Baseline Commit — COMPLETE:**
+- Saved complete baseline release snapshot incorporating all Phase 19 features across Web, Desktop, Mobile, and shared monorepo packages.
+
+---
+
+## Current Phase
+
+**Phase 21 — Scalable Storage, Hybrid Transcoding & Infrastructure Pipeline (PLANNED)**
+
+### Sub-Phase Summary:
+- [ ] **Sub-Phase 21a — Single Master File & Skip-Upscaling Storage Pipeline**: Implement master MP4 file storage (`master_source.mp4`), faststart metadata normalization, and strict `ffprobe` downscale-only filters (1080p, 720p, 480p).
+- [ ] **Sub-Phase 21b — Zero-CPU 1080p Byte-Range & On-Demand Chunk Transcoder**: Configure HLS master manifest generator to serve native 1080p via fMP4 HTTP byte-ranges (0% CPU re-encoding) and 20-second 720p/480p chunk lookahead encoding with Celery/ffmpeg CPU throttling (`-threads 2 -nice 10`).
+- [ ] **Sub-Phase 21c — Automatic LRU Storage Eviction Cleaner**: Build automated background garbage collector to purge inactive hot cache downscaled chunks (>10-15 mins idle or >80% disk capacity).
+- [ ] **Sub-Phase 21d — Cloud Storage & MinIO Integration**: Abstract media storage service to support S3/MinIO (Oracle Always Free 200 GB) + Cloudflare CDN egress integration.
+- [ ] **Sub-Phase 21e — Event-Driven Telemetry & Throttled Watch Tracking**: Upgrade React/RN video players with `onSeeking`, `onPause`, and `sendBeacon` event listeners + 30s debounced heartbeat, reducing backend DB/Redis traffic by 99%.
+
 ### Phase Rule — read before doing anything else
 
 This is **not** a normal coding phase. No implementation may begin until a

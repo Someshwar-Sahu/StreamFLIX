@@ -7,6 +7,10 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  const customIp = await AsyncStorage.getItem("custom_host_ip");
+  if (customIp) {
+    config.baseURL = customIp;
+  }
   const profileToken = await AsyncStorage.getItem("profile_token");
   const token = profileToken || (await AsyncStorage.getItem("auth_token"));
   if (token) {

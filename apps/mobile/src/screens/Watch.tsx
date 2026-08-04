@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { getContentDetails, toggleWatchlist, rateContent, clearRating } from '../api/interactions';
 import DeleteSafetyModal from '../components/DeleteSafetyModal';
 import { isContentDownloaded, saveDownload, removeDownload, DownloadQuality } from '../utils/downloads';
+import { formatMbSize } from '../utils/formatters';
 import { resolveMediaUrl } from '../api/media';
 import { DESIGN_TOKENS } from '@streamflix/ui';
 
@@ -19,6 +20,7 @@ export default function Watch({ route, navigation }: any) {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
   const durationRef = useRef<number>(0);
+  const lastSyncedTimeRef = useRef<number>(0);
 
   useEffect(() => {
     let timer: any = null;
@@ -47,7 +49,8 @@ export default function Watch({ route, navigation }: any) {
     if (data.seekableDuration) {
       durationRef.current = data.seekableDuration;
     }
-    if (currentTime > 3) {
+    if (currentTime > 3 && (currentTime - lastSyncedTimeRef.current >= 30 || currentTime < lastSyncedTimeRef.current)) {
+      lastSyncedTimeRef.current = currentTime
       api.post('/watch-history', {
         content_id: Number(id),
         progress_seconds: Math.floor(currentTime),
@@ -55,6 +58,18 @@ export default function Watch({ route, navigation }: any) {
       }).catch(() => {});
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (lastSyncedTimeRef.current > 0){
+        api.post('/watch-history', {
+          content_id: Number(id),
+          progress_seconds: Math.floor(lastSyncedTimeRef.current),
+          duration_seconds: durationRef.current ? Math.floor(durationRef.current) : null
+        }).catch(() => {})
+      }
+    }
+  }, [id])
 
   async function handleWatchlist() {
     if (!details) return;
@@ -69,7 +84,7 @@ export default function Watch({ route, navigation }: any) {
     setDetails((prev: any) => {
       let newLikes = prev.likes || 0;
       let newDislikes = prev.dislikes || 0;
-      let newRating = value;
+      let newRating: number | null = value;
 
       if (oldRating === value) {
         newRating = null;
@@ -115,13 +130,10 @@ export default function Watch({ route, navigation }: any) {
     }
   }
 
-  // Calculate dynamic MB size based on duration
-  const activeDuration = durationRef.current || (details?.duration ? details.duration : 5400); // 90 mins default if uncomputed
+  const activeDuration = durationRef.current || (details?.duration ? details.duration : 5400);
 
   const getDynamicSize = (quality: DownloadQuality): number => {
-    if (quality === '1080p') return Math.max(25, Math.round(activeDuration * 0.625)); // 5.0 Mbps
-    if (quality === '720p') return Math.max(15, Math.round(activeDuration * 0.3125));  // 2.5 Mbps
-    return Math.max(8, Math.round(activeDuration * 0.125));                              // 1.0 Mbps
+    return formatMbSize(activeDuration, quality);
   };
 
   const formatDurLabel = (secs: number) => {
@@ -150,12 +162,11 @@ export default function Watch({ route, navigation }: any) {
     navigation.navigate('Movies');
   }
 
-  const videoUri = resolveMediaUrl(`/media/${id}/master.m3u8`) || '';
+  const videoUri = resolveMediaUrl(`/content/${id}/stream/master.m3u8`) || '';
   const isProcessing = details?.status === 'processing';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Default React Native Video Player */}
       <View style={styles.playerWrap}>
         <Video
           source={{ uri: videoUri }}
@@ -241,7 +252,6 @@ export default function Watch({ route, navigation }: any) {
         )}
       </ScrollView>
 
-      {/* Download Quality Selection Modal */}
       <Modal
         visible={showQualityModal}
         transparent={true}
@@ -303,7 +313,7 @@ export default function Watch({ route, navigation }: any) {
       </Modal>
 
       <DeleteSafetyModal
-        isOpen={isDeleteOpen}
+        visible={isDeleteOpen}
         title={details?.title || 'this movie'}
         onConfirm={handleDeleteContent}
         onClose={() => setIsDeleteOpen(false)}

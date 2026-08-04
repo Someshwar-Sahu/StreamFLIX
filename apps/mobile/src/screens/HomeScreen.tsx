@@ -89,7 +89,6 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         ) : (
           <>
-            {/* Featured Hero Banner */}
             {featuredItem && (
               <View style={styles.heroCard}>
                 <ImageBackground

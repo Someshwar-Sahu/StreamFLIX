@@ -11,14 +11,12 @@ type FilePart = { uri: string; type?: string; name?: string };
 export default function Upload({ navigation }: any) {
   const [tab, setTab] = useState<'movie' | 'series'>('movie');
 
-  // movie
   const [mTitle, setMTitle] = useState('');
   const [mDesc, setMDesc] = useState('');
   const [mCategoriesList, setMCategoriesList] = useState<string[]>([]);
-  const [mFile, setMFile] = useState<FilePart | null>(null);
-  const [mPoster, setMPoster] = useState<FilePart | null>(null);
+  const [mFile, setMFile] = useState<any>(null);
+  const [mPoster, setMPoster] = useState<any>(null);
 
-  // series
   const [seriesMode, setSeriesMode] = useState<'new' | 'existing'>('new');
   const [existingSeriesList, setExistingSeriesList] = useState<any[]>([]);
   const [seasonsList, setSeasonsList] = useState<any[]>([]);
@@ -192,7 +190,6 @@ export default function Upload({ navigation }: any) {
 
         {tab === 'series' && (
           <View>
-            {/* Series Mode Selector */}
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
               <TouchableOpacity
                 style={[styles.modeChip, seriesMode === 'new' && styles.modeChipActive]}
