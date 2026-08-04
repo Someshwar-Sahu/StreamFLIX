@@ -4,6 +4,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent  # -> streamflix/ root
 
 class Settings(BaseSettings):
+    cors_origins: str = "*"
     database_url: str
     redis_url: str
     jwt_secret: str

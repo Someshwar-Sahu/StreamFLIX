@@ -19,9 +19,11 @@ from app.api.discover import router as discover_router
 
 app = FastAPI(title="StreamFlix API")
 
+origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()] if settings.cors_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
