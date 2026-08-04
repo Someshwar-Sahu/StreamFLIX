@@ -79,6 +79,7 @@ export default function Login() {
               className={styles.input}
               type="email"
               placeholder="Email address"
+              autoComplete="username email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -89,6 +90,7 @@ export default function Login() {
             <input
               className={styles.input}
               placeholder="Username"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -100,6 +102,7 @@ export default function Login() {
               className={styles.input}
               type="password"
               placeholder="Password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

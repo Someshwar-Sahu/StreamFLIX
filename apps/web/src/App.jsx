@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './api/AuthContext';
 import Navigation from './components/Navigation';
 import Home from './pages/Home';
@@ -40,10 +40,12 @@ function PublicRoute({ children }) {
   return children;
 }
 
+const RouterComponent = HashRouter;
+
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <RouterComponent>
         <Navigation />
         <Routes>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -65,7 +67,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+      </RouterComponent>
     </AuthProvider>
   );
 }
