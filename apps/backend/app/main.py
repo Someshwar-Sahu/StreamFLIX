@@ -49,6 +49,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.core.db import get_db
 
+@app.get("/")
+def root_index():
+    return {
+        "service": "StreamFlix API Engine",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
 @app.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)):
     db_status = "ok"
