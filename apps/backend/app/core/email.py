@@ -1,14 +1,69 @@
+import json
+import urllib.request
+import urllib.error
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.utils import formatdate, make_msgid
+from email.utils import formatdate
 from app.core.config import settings
 
+def _send_via_resend(api_key: str, to_email: str, subject: str, html_content: str) -> bool:
+    try:
+        url = "https://api.resend.com/emails"
+        payload = json.dumps({
+            "from": "StreamFlix <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201):
+                print(f"[RESEND HTTP API] OTP email successfully sent to {to_email}")
+                return True
+    except Exception as e:
+        print(f"[RESEND HTTP API WARNING] Dispatch failed: {e}")
+    return False
+
+def _send_via_brevo(api_key: str, to_email: str, subject: str, html_content: str, from_email: str) -> bool:
+    try:
+        url = "https://api.brevo.com/v3/smtp/email"
+        payload = json.dumps({
+            "sender": {"name": "StreamFlix", "email": from_email},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "htmlContent": html_content
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201):
+                print(f"[BREVO HTTP API] OTP email successfully sent to {to_email}")
+                return True
+    except Exception as e:
+        print(f"[BREVO HTTP API WARNING] Dispatch failed: {e}")
+    return False
+
 def send_otp_email(to_email: str, otp_code: str):
-    host = getattr(settings, "smtp_host", "smtp.gmail.com") or "smtp.gmail.com"
-    port = int(getattr(settings, "smtp_port", 587) or 587)
-    user = getattr(settings, "smtp_user", "a93767093@gmail.com") or "a93767093@gmail.com"
-    pwd = (getattr(settings, "smtp_password", "") or "bmezkdvylxzrurau").replace(" ", "")
+    resend_key = getattr(settings, "resend_api_key", "") or ""
+    brevo_key = getattr(settings, "brevo_api_key", "") or ""
 
     subject = f"{otp_code} is your StreamFlix security code"
     
@@ -63,6 +118,22 @@ def send_otp_email(to_email: str, otp_code: str):
     </html>
     """
 
+    # 1. Try Resend HTTP API if key is present
+    if resend_key:
+        if _send_via_resend(resend_key, to_email, subject, html_content):
+            return
+
+    # 2. Try Brevo HTTP API if key is present
+    user = getattr(settings, "smtp_user", "a93767093@gmail.com") or "a93767093@gmail.com"
+    if brevo_key:
+        if _send_via_brevo(brevo_key, to_email, subject, html_content, user):
+            return
+
+    # 3. Fallback to standard SMTP
+    host = getattr(settings, "smtp_host", "smtp.gmail.com") or "smtp.gmail.com"
+    port = int(getattr(settings, "smtp_port", 465) or 465)
+    pwd = (getattr(settings, "smtp_password", "") or "bmezkdvylxzrurau").replace(" ", "")
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -86,7 +157,7 @@ def send_otp_email(to_email: str, otp_code: str):
                 server.login(user, pwd)
                 server.sendmail(user, to_email, msg.as_string())
 
-        print(f"[OTP MAIL] OTP email successfully delivered to {to_email}")
+        print(f"[OTP MAIL] SMTP email successfully delivered to {to_email}")
     except Exception as e:
         print(f"\n=======================================================")
         print(f"[SMTP WARNING] Connection Warning: {e}")

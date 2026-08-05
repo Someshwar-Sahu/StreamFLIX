@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     smtp_user: str = "a93767093@gmail.com"
     smtp_password: str = "bmezkdvylxzrurau"
     emails_from_name: str = "StreamFlix"
+    resend_api_key: str = ""
+    brevo_api_key: str = ""
 
     class Config:
         env_file = [str(BASE_DIR / ".env"), ".env"]
