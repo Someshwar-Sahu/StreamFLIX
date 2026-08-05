@@ -43,7 +43,7 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     return {
         "status": "otp_required",
         "email": user.email,
-        "message": f"Security code sent to {user.email} (Use code 000000 to verify)",
+        "message": f"Security code sent to {user.email}",
     }
 
 
@@ -62,7 +62,7 @@ async def verify_otp(
     if user.is_verified:
         return TokenResponse(access_token=create_access_token(user.id, user.role))
 
-    if user.verification_otp != code and code != "000000":
+    if user.verification_otp != code:
         raise HTTPException(400, "Invalid 6-digit verification code")
 
     user.is_verified = True
