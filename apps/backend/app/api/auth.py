@@ -23,23 +23,20 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     existing_username = await db.execute(select(User).where(User.username == data.username))
     user_by_username = existing_username.scalar_one_or_none()
 
-    if user_by_username and user_by_username.is_verified:
-        if not user_by_email or user_by_email.id != user_by_username.id:
-            raise HTTPException(400, "Username is already taken")
+    if user_by_username and (not user_by_email or user_by_email.id != user_by_username.id):
+        raise HTTPException(400, "Username is already taken")
 
-    target_user = user_by_email or user_by_username
     otp_code = f"{random.randint(100000, 999999)}"
     now = datetime.utcnow()
 
-    if target_user and not target_user.is_verified:
-        target_user.email = data.email
-        target_user.username = data.username
-        target_user.password_hash = hash_password(data.password)
-        target_user.verification_otp = otp_code
-        target_user.last_otp_sent_at = now
+    if user_by_email and not user_by_email.is_verified:
+        user_by_email.username = data.username
+        user_by_email.password_hash = hash_password(data.password)
+        user_by_email.verification_otp = otp_code
+        user_by_email.last_otp_sent_at = now
         await db.commit()
-        await db.refresh(target_user)
-        user = target_user
+        await db.refresh(user_by_email)
+        user = user_by_email
     else:
         user = User(
             email=data.email,
@@ -67,6 +64,7 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
         "email": user.email,
         "message": f"Security code sent to {user.email}",
     }
+
 
 
 @router.post("/verify-otp", response_model=TokenResponse)

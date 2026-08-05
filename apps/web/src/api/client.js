@@ -8,14 +8,7 @@ export const getApiBaseUrl = () => {
   if (import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    const hostname = window.location.hostname;
-    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "") {
-      const protocol = window.location.protocol.startsWith("https") ? "https" : "http";
-      return `${protocol}://${hostname}:8000`;
-    }
-  }
-  return "http://localhost:8000";
+  return "https://streamflix-hes5.onrender.com";
 };
 
 export const API_BASE_URL = getApiBaseUrl();

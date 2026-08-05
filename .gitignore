@@ -15,6 +15,7 @@ media_storage/*
 
 # Exclude backend database reset utility from git upload (file stays local)
 apps/backend/reset_db.py
+apps/backend/tests/test_registration_flow.py
 
 # Exclude build outputs & redundant locks
 apps/desktop/web-build/

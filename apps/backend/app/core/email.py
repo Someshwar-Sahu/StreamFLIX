@@ -5,18 +5,17 @@ from email.utils import formatdate, make_msgid
 from app.core.config import settings
 
 def send_otp_email(to_email: str, otp_code: str):
-    host = "smtp.gmail.com"
-    port = 465
-    user = "a93767093@gmail.com"
-    pwd = "bmezkdvylxzrurau"
+    host = getattr(settings, "smtp_host", "smtp.gmail.com") or "smtp.gmail.com"
+    port = int(getattr(settings, "smtp_port", 587) or 587)
+    user = getattr(settings, "smtp_user", "a93767093@gmail.com") or "a93767093@gmail.com"
+    pwd = (getattr(settings, "smtp_password", "") or "bmezkdvylxzrurau").replace(" ", "")
 
-    subject = f"StreamFlix Verification Code: {otp_code}"
+    subject = f"{otp_code} is your StreamFlix security code"
     
     plain_text = (
-        f"Welcome to StreamFlix!\n\n"
-        f"Your 6-digit account security verification code is: {otp_code}\n\n"
+        f"Your StreamFlix security verification code is: {otp_code}\n\n"
         f"This code will expire in 15 minutes. If you did not request this code, please ignore this email.\n\n"
-        f"— StreamFlix Security Team"
+        f"— StreamFlix Team"
     )
 
     html_content = f"""
@@ -67,24 +66,30 @@ def send_otp_email(to_email: str, otp_code: str):
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = f"StreamFlix Security <{user}>"
+        msg["From"] = f"StreamFlix <{user}>"
         msg["To"] = to_email
         msg["Reply-To"] = user
+        msg["Auto-Submitted"] = "auto-generated"
+        msg["X-Auto-Response-Suppress"] = "All"
         msg["Date"] = formatdate(localtime=True)
-        msg["Message-ID"] = make_msgid(domain="gmail.com")
-        msg["X-Priority"] = "1"
-        msg["X-MSMail-Priority"] = "High"
-        msg["Importance"] = "High"
 
         msg.attach(MIMEText(plain_text, "plain", "utf-8"))
         msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-        with smtplib.SMTP_SSL(host, port, timeout=10) as server:
-            server.login(user, pwd)
-            server.sendmail(user, to_email, msg.as_string())
-        print(f"[OTP MAIL] Anti-Spam compliant OTP email successfully delivered to {to_email}")
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=10) as server:
+                server.login(user, pwd)
+                server.sendmail(user, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP(host, port, timeout=10) as server:
+                server.starttls()
+                server.login(user, pwd)
+                server.sendmail(user, to_email, msg.as_string())
+
+        print(f"[OTP MAIL] OTP email successfully delivered to {to_email}")
     except Exception as e:
         print(f"\n=======================================================")
         print(f"[SMTP WARNING] Connection Warning: {e}")
         print(f"[STREAMFLIX MAIL SIMULATOR] OTP Code for {to_email}: {otp_code}")
         print(f"=======================================================\n")
+
