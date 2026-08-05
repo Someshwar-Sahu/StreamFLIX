@@ -5,16 +5,10 @@ from email.utils import formatdate, make_msgid
 from app.core.config import settings
 
 def send_otp_email(to_email: str, otp_code: str):
-    host = settings.smtp_host.strip() if settings.smtp_host else "smtp.gmail.com"
-    port = int(settings.smtp_port) if settings.smtp_port and settings.smtp_port != 587 else 465
-    user = settings.smtp_user.strip() if (settings.smtp_user and settings.smtp_user.strip()) else "a93767093@gmail.com"
-    pwd = settings.smtp_password.replace(" ", "").strip() if (settings.smtp_password and settings.smtp_password.strip()) else "bmezkdvylxzrurau"
-
-    if not user or not pwd:
-        print(f"\n=======================================================")
-        print(f"[STREAMFLIX MAIL SIMULATOR] OTP Code for {to_email}: {otp_code}")
-        print(f"=======================================================\n")
-        return
+    host = "smtp.gmail.com"
+    port = 465
+    user = "a93767093@gmail.com"
+    pwd = "bmezkdvylxzrurau"
 
     subject = f"StreamFlix Verification Code: {otp_code}"
     
@@ -85,15 +79,9 @@ def send_otp_email(to_email: str, otp_code: str):
         msg.attach(MIMEText(plain_text, "plain", "utf-8"))
         msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=10) as server:
-                server.login(user, pwd)
-                server.sendmail(user, to_email, msg.as_string())
-        else:
-            with smtplib.SMTP(host, port, timeout=10) as server:
-                server.starttls()
-                server.login(user, pwd)
-                server.sendmail(user, to_email, msg.as_string())
+        with smtplib.SMTP_SSL(host, port, timeout=10) as server:
+            server.login(user, pwd)
+            server.sendmail(user, to_email, msg.as_string())
         print(f"[OTP MAIL] Anti-Spam compliant OTP email successfully delivered to {to_email}")
     except Exception as e:
         print(f"\n=======================================================")
