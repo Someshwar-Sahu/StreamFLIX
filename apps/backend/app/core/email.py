@@ -124,7 +124,9 @@ def send_otp_email(to_email: str, otp_code: str):
             return
 
     # 2. Try Brevo HTTP API if key is present
-    user = getattr(settings, "smtp_user", "a93767093@gmail.com") or "a93767093@gmail.com"
+    user = getattr(settings, "smtp_user", "someshwarsahu1234@gmail.com") or "someshwarsahu1234@gmail.com"
+    if user == "a93767093@gmail.com":
+        user = "someshwarsahu1234@gmail.com"
     if brevo_key:
         if _send_via_brevo(brevo_key, to_email, subject, html_content, user):
             return
