@@ -71,6 +71,19 @@ class BackblazeB2Provider:
         )
         return f"/{self.bucket_name}/{s3_key}"
 
+    def generate_presigned_url(self, s3_key: str, content_type: str = "video/mp4", expires_in: int = 3600) -> str:
+        if not self.client:
+            raise RuntimeError(f"Storage provider {self.name} is not initialized.")
+        return self.client.generate_presigned_url(
+            ClientMethod="put_object",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": s3_key,
+                "ContentType": content_type,
+            },
+            ExpiresIn=expires_in,
+        )
+
 class StorageManager:
     def __init__(self):
         self.buckets = [
@@ -118,5 +131,17 @@ class StorageManager:
 
     def get_cdn_stream_url(self, relative_s3_path: str) -> str:
         return f"{self.cdn_url}{relative_s3_path}"
+
+    def generate_presigned_upload(self, s3_key: str, incoming_bytes: int, content_type: str = "video/mp4") -> dict | None:
+        bucket = self.get_available_storage_bucket(incoming_bytes)
+        if not bucket or not bucket.client:
+            return None
+        url = bucket.generate_presigned_url(s3_key, content_type=content_type)
+        return {
+            "upload_url": url,
+            "bucket_name": bucket.bucket_name,
+            "s3_key": s3_key,
+            "relative_path": f"/{bucket.bucket_name}/{s3_key}"
+        }
 
 storage_manager = StorageManager()

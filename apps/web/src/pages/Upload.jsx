@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadMovie, createSeries, createSeason, uploadEpisode } from "../api/upload";
 import { getSeries, getSeriesDetail } from "../api/catalog";
@@ -8,6 +8,7 @@ import styles from "../styles/Upload.module.css";
 export default function Upload() {
   const [tab, setTab] = useState("movie");
   const navigate = useNavigate();
+  const cancelUploadRef = useRef(null);
 
   const [mTitle, setMTitle] = useState("");
   const [mDesc, setMDesc] = useState("");
@@ -38,6 +39,18 @@ export default function Upload() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (isSubmitting || uploadStats) {
+        e.preventDefault();
+        e.returnValue = "An upload is currently in progress. If you leave or close this page, your upload will be cancelled.";
+        return e.returnValue;
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isSubmitting, uploadStats]);
+
+  useEffect(() => {
     if (tab === "series") {
       getSeries()
         .then((list) => setExistingSeriesList(list || []))
@@ -45,41 +58,14 @@ export default function Upload() {
     }
   }, [tab]);
 
-  const handleSelectExistingSeries = async (sId) => {
-    const sIdNum = Number(sId);
-    setSeriesId(sIdNum);
-    setSeasonId(null);
-    if (!sIdNum) {
-      setSelectedSeries(null);
-      setSeasonsList([]);
-      return;
+  function handleUserCancelUpload() {
+    if (cancelUploadRef.current) {
+      cancelUploadRef.current();
     }
-    try {
-      const detail = await getSeriesDetail(sIdNum);
-      setSelectedSeries(detail);
-      setSeasonsList(detail.seasons || []);
-      if (detail.seasons && detail.seasons.length > 0) {
-        setSeasonId(detail.seasons[0].id);
-        const nextEp = (detail.seasons[0].episodes?.length || 0) + 1;
-        setEpNumber(nextEp);
-        setSeasonNumber((detail.seasons.length) + 1);
-      } else {
-        setSeasonNumber(1);
-      }
-    } catch (err) {
-      setError("Failed to load series details");
-    }
-  };
-
-  const handleSelectSeason = (secId) => {
-    const secIdNum = Number(secId);
-    setSeasonId(secIdNum);
-    const foundSeason = seasonsList.find((s) => s.id === secIdNum);
-    if (foundSeason) {
-      const nextEp = (foundSeason.episodes?.length || 0) + 1;
-      setEpNumber(nextEp);
-    }
-  };
+    setUploadStats(null);
+    setIsSubmitting(false);
+    setError("Upload cancelled by user.");
+  }
 
   async function handleMovieSubmit(e) {
     e.preventDefault();
@@ -94,10 +80,15 @@ export default function Upload() {
         file: mFile,
         poster: mPoster,
         onProgress: (stats) => setUploadStats(stats),
+        onCancelRef: (fn) => { cancelUploadRef.current = fn; },
       });
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.detail || "Upload failed");
+      if (err.message === "CANCELLED") {
+        setError("Upload cancelled by user.");
+      } else {
+        setError(err.response?.data?.detail || err.message || "Upload failed");
+      }
       setUploadStats(null);
       setIsSubmitting(false);
     }
@@ -155,6 +146,7 @@ export default function Upload() {
         title: epTitle,
         file: epFile,
         onProgress: (stats) => setUploadStats(stats),
+        onCancelRef: (fn) => { cancelUploadRef.current = fn; },
       });
       setSuccess(`Episode ${epNumber} uploaded and processing.`);
       setEpNumber((n) => n + 1);
@@ -165,7 +157,11 @@ export default function Upload() {
       const detail = await getSeriesDetail(seriesId);
       setSeasonsList(detail.seasons || []);
     } catch (err) {
-      setError(err.response?.data?.detail || "Episode upload failed");
+      if (err.message === "CANCELLED") {
+        setError("Upload cancelled by user.");
+      } else {
+        setError(err.response?.data?.detail || err.message || "Episode upload failed");
+      }
       setUploadStats(null);
     } finally {
       setIsSubmitting(false);
@@ -188,9 +184,26 @@ export default function Upload() {
               <span>Uploading Video... {uploadStats.percent}%</span>
               <span>{uploadStats.loadedMb} MB / {uploadStats.totalMb} MB</span>
             </div>
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{ height: '100%', background: '#F2A93B', width: `${uploadStats.percent}%`, transition: 'width 0.2s ease' }} />
             </div>
+            <button
+              type="button"
+              onClick={handleUserCancelUpload}
+              style={{
+                background: 'rgba(229, 9, 20, 0.2)',
+                border: '1px solid #E50914',
+                color: '#E50914',
+                padding: '6px 14px',
+                borderRadius: 6,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              🛑 Cancel Upload
+            </button>
           </div>
         )}
 

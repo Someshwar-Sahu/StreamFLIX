@@ -23,7 +23,110 @@ from app.services.rating_service import get_content_rating_summary
 from app.services.watch_history_service import get_resume_progress
 from app.workers.tasks import process_master_upload
 
+from pydantic import BaseModel
+from datetime import datetime
+
+class PresignedUploadRequest(BaseModel):
+    title: str
+    description: str | None = None
+    categoryNames: str | None = None
+    filename: str
+    file_size: int
+    content_type: str = "video/mp4"
+
 router = APIRouter(prefix="/content", tags=["content"])
+
+@router.post("/presigned-upload-url")
+async def get_presigned_upload_url(
+    payload: PresignedUploadRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+):
+    incoming_bytes = payload.file_size
+    s3_key = f"raw/{int(datetime.utcnow().timestamp())}_{payload.filename}"
+    
+    presigned = storage_manager.generate_presigned_upload(s3_key, incoming_bytes, payload.content_type)
+    
+    content = Content(
+        title=payload.title,
+        description=payload.description,
+        status="uploading",
+        uploaded_by=user_id,
+    )
+    db.add(content)
+    await db.commit()
+    await db.refresh(content)
+
+    resolved_ids = await resolve_category_ids(db, None, payload.categoryNames)
+    if resolved_ids:
+        categories = (await db.execute(select(Category).where(Category.id.in_(resolved_ids)))).scalars().all()
+        content.categories = categories
+        await db.commit()
+
+    if presigned:
+        return {
+            "direct_b2": True,
+            "content_id": content.id,
+            "upload_url": presigned["upload_url"],
+            "s3_key": presigned["s3_key"],
+            "relative_path": presigned["relative_path"],
+        }
+    else:
+        return {
+            "direct_b2": False,
+            "content_id": content.id,
+            "upload_url": f"/content/{content.id}/proxy-upload",
+        }
+
+@router.post("/{content_id}/complete-direct-upload")
+async def complete_direct_upload(
+    content_id: int,
+    background_tasks: BackgroundTasks,
+    s3_path: str = Form(...),
+    poster: UploadFile | None = File(None),
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+):
+    content = await db.get(Content, content_id)
+    if not content:
+        raise HTTPException(404, "Content not found")
+    
+    content.status = "processing"
+    
+    if poster:
+        poster_dir = settings.media_storage_path / str(content.id)
+        poster_dir.mkdir(parents=True, exist_ok=True)
+        ext = poster.filename.split(".")[-1] if "." in poster.filename else "jpg"
+        poster_path = poster_dir / f"poster.{ext}"
+        CHUNK_SIZE = 8 * 1024 * 1024
+        with open(poster_path, "wb") as f:
+            while True:
+                chunk = await poster.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
+        content.thumbnail_url = f"/media/{content.id}/poster.{ext}"
+    
+    await db.commit()
+    
+    background_tasks.add_task(process_master_upload, content.id, s3_path)
+    
+    res = await db.execute(
+        select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
+    )
+    return res.scalar_one()
+
+@router.delete("/{content_id}/cancel-upload")
+async def cancel_upload(
+    content_id: int,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+):
+    content = await db.get(Content, content_id)
+    if content:
+        await db.delete(content)
+        await db.commit()
+    return {"status": "cancelled"}
 
 @router.post("", response_model=ContentResponse)
 async def upload_content(
