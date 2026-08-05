@@ -2,7 +2,7 @@ import random
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.core.db import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.core.email import send_otp_email
@@ -38,10 +38,15 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
         await db.refresh(user_by_email)
         user = user_by_email
     else:
+        user_count_res = await db.execute(select(func.count()).select_from(User))
+        user_count = user_count_res.scalar() or 0
+        assigned_role = "admin" if user_count == 0 else "viewer"
+
         user = User(
             email=data.email,
             username=data.username,
             password_hash=hash_password(data.password),
+            role=assigned_role,
             is_verified=False,
             verification_otp=otp_code,
             last_otp_sent_at=now,
