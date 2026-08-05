@@ -92,6 +92,108 @@ async def get_presigned_upload_url(
             "upload_url": f"/content/{content.id}/proxy-upload",
         }
 
+class PresignedMultipartInitRequest(BaseModel):
+    title: str
+    description: str | None = None
+    categoryNames: str | None = None
+    filename: str
+    file_size: int
+    total_parts: int
+    content_type: str = "video/mp4"
+
+@router.post("/presigned-multipart-init")
+async def get_presigned_multipart_init(
+    payload: PresignedMultipartInitRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(401, "User account no longer exists. Please sign out and sign in again.")
+
+    incoming_bytes = payload.file_size
+    s3_key = f"raw/{int(datetime.utcnow().timestamp())}_{payload.filename}"
+
+    try:
+        presigned = storage_manager.generate_presigned_multipart_upload(
+            s3_key, incoming_bytes, payload.total_parts, payload.content_type
+        )
+    except Exception as e:
+        print(f"[MULTIPART INIT ERROR] {e}")
+        raise HTTPException(500, f"Failed to initialize parallel multipart upload: {str(e)}")
+
+    if not presigned:
+        raise HTTPException(400, "Direct Backblaze B2 storage configuration missing or cap reached.")
+
+    try:
+        content = Content(
+            title=payload.title,
+            description=payload.description,
+            status="uploading",
+            uploaded_by=user_id,
+        )
+        db.add(content)
+        await db.commit()
+        await db.refresh(content)
+
+        resolved_ids = await resolve_category_ids(db, None, payload.categoryNames)
+        if resolved_ids:
+            for cat_id in resolved_ids:
+                await db.execute(content_categories.insert().values(content_id=content.id, category_id=cat_id))
+            await db.commit()
+    except Exception as e:
+        await db.rollback()
+        print(f"[MULTIPART INIT DB ERROR] {e}")
+        raise HTTPException(500, f"Database transaction failed: {str(e)}")
+
+    return {
+        "content_id": content.id,
+        "bucket_name": presigned["bucket_name"],
+        "s3_key": presigned["s3_key"],
+        "upload_id": presigned["upload_id"],
+        "part_urls": presigned["part_urls"],
+        "relative_path": presigned["relative_path"],
+    }
+
+class CompleteMultipartRequest(BaseModel):
+    bucket_name: str
+    s3_key: str
+    upload_id: str
+    parts: list[dict]
+
+@router.post("/{content_id}/complete-multipart-upload")
+async def complete_multipart_upload_route(
+    content_id: int,
+    payload: CompleteMultipartRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+):
+    content = await db.get(Content, content_id)
+    if not content:
+        raise HTTPException(404, "Content not found")
+
+    try:
+        storage_manager.complete_multipart(
+            payload.bucket_name, payload.s3_key, payload.upload_id, payload.parts
+        )
+    except Exception as e:
+        print(f"[COMPLETE MULTIPART B2 ERROR] {e}")
+        raise HTTPException(500, f"Failed to complete parallel S3 multipart upload: {str(e)}")
+
+    content.status = "processing"
+    await db.commit()
+    await db.refresh(content)
+
+    s3_rel_path = f"/{payload.bucket_name}/{payload.s3_key}"
+    background_tasks.add_task(process_master_upload, content.id, s3_rel_path)
+
+    return {
+        "status": "success",
+        "message": "Parallel multipart upload completed and queued for high-speed HLS processing",
+        "content_id": content.id,
+    }
+
 @router.post("/{content_id}/complete-direct-upload")
 async def complete_direct_upload(
     content_id: int,

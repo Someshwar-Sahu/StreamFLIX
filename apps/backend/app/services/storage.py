@@ -103,6 +103,53 @@ class BackblazeB2Provider:
             ExpiresIn=expires_in,
         )
 
+    def initiate_multipart_upload(self, s3_key: str, content_type: str = "video/mp4") -> str:
+        if not self.client:
+            raise RuntimeError(f"Storage provider {self.name} is not initialized.")
+        clean_content_type = content_type.strip() if (content_type and content_type.strip()) else "video/mp4"
+        response = self.client.create_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=s3_key,
+            ContentType=clean_content_type
+        )
+        return response["UploadId"]
+
+    def generate_presigned_part_url(self, s3_key: str, upload_id: str, part_number: int, expires_in: int = 3600) -> str:
+        if not self.client:
+            raise RuntimeError(f"Storage provider {self.name} is not initialized.")
+        return self.client.generate_presigned_url(
+            ClientMethod="upload_part",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": s3_key,
+                "UploadId": upload_id,
+                "PartNumber": part_number,
+            },
+            ExpiresIn=expires_in,
+        )
+
+    def complete_multipart_upload(self, s3_key: str, upload_id: str, parts: list[dict]):
+        if not self.client:
+            raise RuntimeError(f"Storage provider {self.name} is not initialized.")
+        return self.client.complete_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=s3_key,
+            UploadId=upload_id,
+            MultipartUpload={"Parts": parts}
+        )
+
+    def abort_multipart_upload(self, s3_key: str, upload_id: str):
+        if not self.client:
+            return
+        try:
+            self.client.abort_multipart_upload(
+                Bucket=self.bucket_name,
+                Key=s3_key,
+                UploadId=upload_id
+            )
+        except Exception as e:
+            print(f"Abort multipart failed for {s3_key}: {e}")
+
 class StorageManager:
     def __init__(self):
         self.buckets = [
@@ -162,5 +209,30 @@ class StorageManager:
             "s3_key": s3_key,
             "relative_path": f"/{bucket.bucket_name}/{s3_key}"
         }
+
+    def generate_presigned_multipart_upload(self, s3_key: str, incoming_bytes: int, total_parts: int, content_type: str = "video/mp4") -> dict | None:
+        bucket = self.get_available_storage_bucket(incoming_bytes)
+        if not bucket or not bucket.client:
+            return None
+        
+        upload_id = bucket.initiate_multipart_upload(s3_key, content_type=content_type)
+        part_urls = []
+        for part_num in range(1, total_parts + 1):
+            url = bucket.generate_presigned_part_url(s3_key, upload_id, part_num)
+            part_urls.append({"part_number": part_num, "upload_url": url})
+        
+        return {
+            "bucket_name": bucket.bucket_name,
+            "s3_key": s3_key,
+            "upload_id": upload_id,
+            "part_urls": part_urls,
+            "relative_path": f"/{bucket.bucket_name}/{s3_key}"
+        }
+
+    def complete_multipart(self, bucket_name: str, s3_key: str, upload_id: str, parts: list[dict]):
+        for bucket in self.buckets:
+            if bucket.bucket_name == bucket_name and bucket.client:
+                return bucket.complete_multipart_upload(s3_key, upload_id, parts)
+        raise RuntimeError(f"Bucket {bucket_name} not found or uninitialized.")
 
 storage_manager = StorageManager()
