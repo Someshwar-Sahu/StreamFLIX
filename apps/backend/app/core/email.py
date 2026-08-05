@@ -7,8 +7,8 @@ from app.core.config import settings
 def send_otp_email(to_email: str, otp_code: str):
     host = settings.smtp_host.strip() if settings.smtp_host else "smtp.gmail.com"
     port = int(settings.smtp_port) if settings.smtp_port else 587
-    user = settings.smtp_user.strip() if settings.smtp_user else ""
-    pwd = settings.smtp_password.replace(" ", "").strip() if settings.smtp_password else ""
+    user = settings.smtp_user.strip() if (settings.smtp_user and settings.smtp_user.strip()) else "a93767093@gmail.com"
+    pwd = settings.smtp_password.replace(" ", "").strip() if (settings.smtp_password and settings.smtp_password.strip()) else "bmezkdvylxzrurau"
 
     if not user or not pwd:
         print(f"\n=======================================================")
@@ -89,9 +89,9 @@ def send_otp_email(to_email: str, otp_code: str):
             server.starttls()
             server.login(user, pwd)
             server.sendmail(user, to_email, msg.as_string())
-        print(f"✅ Anti-Spam compliant OTP email successfully delivered to {to_email}")
+        print(f"[OTP MAIL] Anti-Spam compliant OTP email successfully delivered to {to_email}")
     except Exception as e:
         print(f"\n=======================================================")
-        print(f"⚠️ SMTP Connection Warning: {e}")
-        print(f"📧 [STREAMFLIX MAIL SIMULATOR] OTP Code for {to_email}: {otp_code}")
+        print(f"[SMTP WARNING] Connection Warning: {e}")
+        print(f"[STREAMFLIX MAIL SIMULATOR] OTP Code for {to_email}: {otp_code}")
         print(f"=======================================================\n")
