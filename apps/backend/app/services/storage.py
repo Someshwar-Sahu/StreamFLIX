@@ -36,6 +36,18 @@ class BackblazeB2Provider:
                     region_name="us-east-005",
                     config=Config(signature_version="s3v4")
                 )
+                try:
+                    cors_config = {
+                        'CORSRules': [{
+                            'AllowedHeaders': ['*'],
+                            'AllowedMethods': ['PUT', 'POST', 'GET', 'HEAD'],
+                            'AllowedOrigins': ['*'],
+                            'MaxAgeSeconds': 3600
+                        }]
+                    }
+                    self.client.put_bucket_cors(Bucket=self.bucket_name, CORSConfiguration=cors_config)
+                except Exception as e:
+                    print(f"B2 CORS setup note for {self.name}: {e}")
             except Exception as e:
                 print(f"Failed to initialize S3 client for {self.name}: {e}")
 
