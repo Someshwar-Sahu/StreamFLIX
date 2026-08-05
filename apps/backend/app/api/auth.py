@@ -43,7 +43,7 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     return {
         "status": "otp_required",
         "email": user.email,
-        "message": f"Security code sent to {user.email}",
+        "message": f"Security code sent to {user.email} (Use code 000000 to verify)",
     }
 
 
