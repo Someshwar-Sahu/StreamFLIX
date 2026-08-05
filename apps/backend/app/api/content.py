@@ -8,6 +8,7 @@ from app.core.db import get_db
 from app.core.config import settings
 from app.core.auth_dep import require_uploader, get_current_profile_id, get_current_user_role
 
+from app.models.user import User
 from app.models.content import Content, ContentVariant
 from app.models.watch_history import WatchHistory
 from app.models.watchlist import Watchlist
