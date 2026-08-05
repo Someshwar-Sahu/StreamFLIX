@@ -13,7 +13,7 @@ export default function ProfilePicker() {
     const [error, setError] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const navigate = useNavigate();
-    const { selectProfile: setProfileToken, profileToken, role } = useAuth();
+    const { selectProfile: setProfileToken, profileToken, role, logout } = useAuth();
 
     const isAdminOrUploader = role === "admin" || role === "uploader";
 
@@ -27,9 +27,19 @@ export default function ProfilePicker() {
             return;
         }
         getProfiles()
-            .then(setProfiles)
-            .catch(() => setError("Couldn't load profiles. Try logging in again."));
-    }, [navigate, profileToken]);
+            .then((list) => {
+                if (!list || list.length === 0) {
+                    logout();
+                    navigate("/login", { replace: true });
+                } else {
+                    setProfiles(list);
+                }
+            })
+            .catch(() => {
+                logout();
+                navigate("/login", { replace: true });
+            });
+    }, [navigate, profileToken, logout]);
 
     async function handlePick(profileId) {
         try {
@@ -86,6 +96,27 @@ export default function ProfilePicker() {
                 )}
             </div>
             {error && <p className={styles.error}>{error}</p>}
+
+            <div style={{ marginTop: 32, textAlign: 'center' }}>
+                <button
+                    onClick={() => {
+                        logout();
+                        navigate("/login", { replace: true });
+                    }}
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        color: '#8A8F98',
+                        padding: '10px 20px',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    Sign Out & Reset Session
+                </button>
+            </div>
 
             <ProfileModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
         </div>
