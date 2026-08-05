@@ -42,26 +42,39 @@ async def get_presigned_upload_url(
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_uploader),
 ):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(401, "User account no longer exists. Please sign out and sign in again.")
+
     incoming_bytes = payload.file_size
     s3_key = f"raw/{int(datetime.utcnow().timestamp())}_{payload.filename}"
     
-    presigned = storage_manager.generate_presigned_upload(s3_key, incoming_bytes, payload.content_type)
-    
-    content = Content(
-        title=payload.title,
-        description=payload.description,
-        status="uploading",
-        uploaded_by=user_id,
-    )
-    db.add(content)
-    await db.commit()
-    await db.refresh(content)
+    try:
+        presigned = storage_manager.generate_presigned_upload(s3_key, incoming_bytes, payload.content_type)
+    except Exception as e:
+        print(f"[PRESIGNED UPLOAD ERROR] Boto3 presigned generation failed: {e}")
+        raise HTTPException(500, f"Failed to generate upload URL: {str(e)}")
 
-    resolved_ids = await resolve_category_ids(db, None, payload.categoryNames)
-    if resolved_ids:
-        categories = (await db.execute(select(Category).where(Category.id.in_(resolved_ids)))).scalars().all()
-        content.categories = categories
+    try:
+        content = Content(
+            title=payload.title,
+            description=payload.description,
+            status="uploading",
+            uploaded_by=user_id,
+        )
+        db.add(content)
         await db.commit()
+        await db.refresh(content)
+
+        resolved_ids = await resolve_category_ids(db, None, payload.categoryNames)
+        if resolved_ids:
+            categories = (await db.execute(select(Category).where(Category.id.in_(resolved_ids)))).scalars().all()
+            content.categories = categories
+            await db.commit()
+    except Exception as e:
+        await db.rollback()
+        print(f"[PRESIGNED UPLOAD DB ERROR] {e}")
+        raise HTTPException(500, f"Database transaction failed: {str(e)}")
 
     if presigned:
         return {

@@ -2,6 +2,7 @@ import boto3
 import time
 from boto3.s3.transfer import TransferConfig
 from pathlib import Path
+from botocore.config import Config
 from app.core.config import settings
 
 # High-throughput multi-part S3 transfer configuration (10 parallel threads, 16MB chunk size)
@@ -17,7 +18,10 @@ class BackblazeB2Provider:
         self.name = name
         self.bucket_name = bucket_name
         self.max_bytes = int(max_gb * 1024 * 1024 * 1024)
-        self.endpoint = endpoint if (endpoint and endpoint.startswith("http")) else "https://s3.us-east-005.backblazeb2.com"
+        clean_ep = endpoint.strip() if endpoint else ""
+        if clean_ep and not clean_ep.startswith("http"):
+            clean_ep = f"https://{clean_ep}"
+        self.endpoint = clean_ep or "https://s3.us-east-005.backblazeb2.com"
         self._cached_used_bytes = 0
         self._last_size_check = 0
 
@@ -27,8 +31,10 @@ class BackblazeB2Provider:
                 self.client = boto3.client(
                     "s3",
                     endpoint_url=self.endpoint,
-                    aws_access_key_id=access_key,
-                    aws_secret_access_key=secret_key
+                    aws_access_key_id=access_key.strip(),
+                    aws_secret_access_key=secret_key.strip(),
+                    region_name="us-east-005",
+                    config=Config(signature_version="s3v4")
                 )
             except Exception as e:
                 print(f"Failed to initialize S3 client for {self.name}: {e}")
@@ -71,15 +77,16 @@ class BackblazeB2Provider:
         )
         return f"/{self.bucket_name}/{s3_key}"
 
-    def generate_presigned_url(self, s3_key: str, content_type: str = "video/mp4", expires_in: int = 3600) -> str:
+    def generate_presigned_url(self, s3_key: str, content_type: str | None = "video/mp4", expires_in: int = 3600) -> str:
         if not self.client:
             raise RuntimeError(f"Storage provider {self.name} is not initialized.")
+        clean_content_type = content_type.strip() if (content_type and content_type.strip()) else "video/mp4"
         return self.client.generate_presigned_url(
             ClientMethod="put_object",
             Params={
                 "Bucket": self.bucket_name,
                 "Key": s3_key,
-                "ContentType": content_type,
+                "ContentType": clean_content_type,
             },
             ExpiresIn=expires_in,
         )
