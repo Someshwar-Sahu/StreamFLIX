@@ -150,40 +150,51 @@ class BackblazeB2Provider:
         except Exception as e:
             print(f"Abort multipart failed for {s3_key}: {e}")
 
+import os
+
 class StorageManager:
     def __init__(self):
+        def _get(key, default=""):
+            val = os.getenv(key)
+            if val is not None and str(val).strip():
+                return str(val).strip()
+            val_set = getattr(settings, key, None) or getattr(settings, key.lower(), None)
+            if val_set is not None and str(val_set).strip():
+                return str(val_set).strip()
+            return default
+
         self.buckets = [
             BackblazeB2Provider(
                 name="B2 Acc 1",
-                endpoint=getattr(settings, "B2_ACC1_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
-                access_key=getattr(settings, "B2_ACC1_ACCESS_KEY", ""),
-                secret_key=getattr(settings, "B2_ACC1_SECRET_KEY", ""),
-                bucket_name=getattr(settings, "B2_ACC1_BUCKET", "streamflix-b2-1"),
-                max_gb=float(getattr(settings, "B2_ACC1_MAX_GB", 9.5))
+                endpoint=_get("B2_ACC1_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
+                access_key=_get("B2_ACC1_ACCESS_KEY", ""),
+                secret_key=_get("B2_ACC1_SECRET_KEY", ""),
+                bucket_name=_get("B2_ACC1_BUCKET", "streamflix-b2-1"),
+                max_gb=float(_get("B2_ACC1_MAX_GB", 9.5))
             ),
             BackblazeB2Provider(
                 name="B2 Acc 2",
-                endpoint=getattr(settings, "B2_ACC2_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
-                access_key=getattr(settings, "B2_ACC2_ACCESS_KEY", ""),
-                secret_key=getattr(settings, "B2_ACC2_SECRET_KEY", ""),
-                bucket_name=getattr(settings, "B2_ACC2_BUCKET", "streamflix-b2-2"),
-                max_gb=float(getattr(settings, "B2_ACC2_MAX_GB", 9.5))
+                endpoint=_get("B2_ACC2_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
+                access_key=_get("B2_ACC2_ACCESS_KEY", ""),
+                secret_key=_get("B2_ACC2_SECRET_KEY", ""),
+                bucket_name=_get("B2_ACC2_BUCKET", "streamflix-b2-2"),
+                max_gb=float(_get("B2_ACC2_MAX_GB", 9.5))
             ),
             BackblazeB2Provider(
                 name="B2 Acc 3",
-                endpoint=getattr(settings, "B2_ACC3_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
-                access_key=getattr(settings, "B2_ACC3_ACCESS_KEY", ""),
-                secret_key=getattr(settings, "B2_ACC3_SECRET_KEY", ""),
-                bucket_name=getattr(settings, "B2_ACC3_BUCKET", "streamflix-b2-3"),
-                max_gb=float(getattr(settings, "B2_ACC3_MAX_GB", 9.5))
+                endpoint=_get("B2_ACC3_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
+                access_key=_get("B2_ACC3_ACCESS_KEY", ""),
+                secret_key=_get("B2_ACC3_SECRET_KEY", ""),
+                bucket_name=_get("B2_ACC3_BUCKET", "streamflix-b2-3"),
+                max_gb=float(_get("B2_ACC3_MAX_GB", 9.5))
             ),
             BackblazeB2Provider(
                 name="B2 Acc 4",
-                endpoint=getattr(settings, "B2_ACC4_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
-                access_key=getattr(settings, "B2_ACC4_ACCESS_KEY", ""),
-                secret_key=getattr(settings, "B2_ACC4_SECRET_KEY", ""),
-                bucket_name=getattr(settings, "B2_ACC4_BUCKET", "streamflix-b2-4"),
-                max_gb=float(getattr(settings, "B2_ACC4_MAX_GB", 9.5))
+                endpoint=_get("B2_ACC4_ENDPOINT", "https://s3.us-east-005.backblazeb2.com"),
+                access_key=_get("B2_ACC4_ACCESS_KEY", ""),
+                secret_key=_get("B2_ACC4_SECRET_KEY", ""),
+                bucket_name=_get("B2_ACC4_BUCKET", "streamflix-b2-4"),
+                max_gb=float(_get("B2_ACC4_MAX_GB", 9.5))
             )
         ]
 

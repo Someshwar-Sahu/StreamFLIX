@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     brevo_api_key: str = ""
 
+    b2_acc1_endpoint: str = "https://s3.us-east-005.backblazeb2.com"
+    b2_acc1_access_key: str = ""
+    b2_acc1_secret_key: str = ""
+    b2_acc1_bucket: str = "streamflix-b2-1"
+    b2_acc1_max_gb: float = 9.5
+
     class Config:
         env_file = [str(BASE_DIR / ".env"), ".env"]
         extra = "ignore"
