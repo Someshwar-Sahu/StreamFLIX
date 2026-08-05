@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.auth_dep import require_uploader, get_current_profile_id, get_current_user_role
 
 from app.models.user import User
-from app.models.content import Content, ContentVariant
+from app.models.content import Content, ContentVariant, content_categories
 from app.models.watch_history import WatchHistory
 from app.models.watchlist import Watchlist
 from app.models.category import Category
@@ -69,8 +69,8 @@ async def get_presigned_upload_url(
 
         resolved_ids = await resolve_category_ids(db, None, payload.categoryNames)
         if resolved_ids:
-            categories = (await db.execute(select(Category).where(Category.id.in_(resolved_ids)))).scalars().all()
-            content.categories = categories
+            for cat_id in resolved_ids:
+                await db.execute(content_categories.insert().values(content_id=content.id, category_id=cat_id))
             await db.commit()
     except Exception as e:
         await db.rollback()
