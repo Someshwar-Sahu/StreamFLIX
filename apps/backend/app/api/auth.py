@@ -57,7 +57,10 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
         db.add(default_profile)
         await db.commit()
 
-    send_otp_email(user.email, otp_code)
+    try:
+        send_otp_email(user.email, otp_code)
+    except Exception as err:
+        print(f"[AUTH ERROR] send_otp_email failed: {err}")
 
     return {
         "status": "otp_required",
