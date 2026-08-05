@@ -189,9 +189,12 @@ class StorageManager:
 
         self.cdn_url = getattr(settings, "CLOUDFLARE_CDN_URL", "https://streamflix-cdn.a93767093.workers.dev")
 
-    def get_available_storage_bucket(self, incoming_bytes: int) -> BackblazeB2Provider | None:
+    def get_available_storage_bucket(self, incoming_bytes: int = 0) -> BackblazeB2Provider | None:
         for bucket in self.buckets:
-            if bucket.can_fit(incoming_bytes):
+            if bucket.client and bucket.can_fit(incoming_bytes):
+                return bucket
+        for bucket in self.buckets:
+            if bucket.client:
                 return bucket
         return None
 
