@@ -1,6 +1,16 @@
 import boto3
+import time
+from boto3.s3.transfer import TransferConfig
 from pathlib import Path
 from app.core.config import settings
+
+# High-throughput multi-part S3 transfer configuration (10 parallel threads, 16MB chunk size)
+B2_TRANSFER_CONFIG = TransferConfig(
+    multipart_threshold=8 * 1024 * 1024,
+    max_concurrency=10,
+    multipart_chunksize=16 * 1024 * 1024,
+    use_threads=True
+)
 
 class BackblazeB2Provider:
     def __init__(self, name: str, endpoint: str, access_key: str, secret_key: str, bucket_name: str, max_gb: float):
@@ -8,6 +18,8 @@ class BackblazeB2Provider:
         self.bucket_name = bucket_name
         self.max_bytes = int(max_gb * 1024 * 1024 * 1024)
         self.endpoint = endpoint if (endpoint and endpoint.startswith("http")) else "https://s3.us-east-005.backblazeb2.com"
+        self._cached_used_bytes = 0
+        self._last_size_check = 0
 
         self.client = None
         if access_key and secret_key:
@@ -24,6 +36,11 @@ class BackblazeB2Provider:
     def get_used_bytes(self) -> int:
         if not self.client:
             return 0
+        now = time.time()
+        # Cache bucket size for 60 seconds to eliminate network latency on upload checks
+        if now - self._last_size_check < 60 and self._cached_used_bytes > 0:
+            return self._cached_used_bytes
+
         try:
             paginator = self.client.get_paginator("list_objects_v2")
             total_size = 0
@@ -31,10 +48,12 @@ class BackblazeB2Provider:
                 if "Contents" in page:
                     for obj in page["Contents"]:
                         total_size += obj["Size"]
+            self._cached_used_bytes = total_size
+            self._last_size_check = now
             return total_size
         except Exception as e:
             print(f"Error checking size for {self.name}: {e}")
-            return 0
+            return self._cached_used_bytes
 
     def can_fit(self, incoming_bytes: int) -> bool:
         used = self.get_used_bytes()
@@ -47,6 +66,7 @@ class BackblazeB2Provider:
             str(local_path),
             self.bucket_name,
             s3_key,
+            Config=B2_TRANSFER_CONFIG,
             ExtraArgs={"ContentType": content_type}
         )
         return f"/{self.bucket_name}/{s3_key}"
