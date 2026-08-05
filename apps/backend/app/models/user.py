@@ -14,6 +14,7 @@ class User(Base):
     role = Column(String, nullable=False, default="viewer")
     is_verified = Column(Boolean, default=False, nullable=False)
     verification_otp = Column(String, nullable=True)
+    last_otp_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     profiles = relationship("Profile", back_populates="account", cascade="all, delete-orphan")

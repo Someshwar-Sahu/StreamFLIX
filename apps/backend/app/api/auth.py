@@ -1,4 +1,5 @@
 import random
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -14,23 +15,31 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register")
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     existing_email = await db.execute(select(User).where(User.email == data.email))
-    user = existing_email.scalar_one_or_none()
+    user_by_email = existing_email.scalar_one_or_none()
 
-    if user and user.is_verified:
+    if user_by_email and user_by_email.is_verified:
         raise HTTPException(400, "Email address is already registered")
 
-    existing_username = await db.execute(select(User).where(User.username == data.username, User.id != (user.id if user else 0)))
-    if existing_username.scalar_one_or_none():
-        raise HTTPException(400, "Username is already taken")
+    existing_username = await db.execute(select(User).where(User.username == data.username))
+    user_by_username = existing_username.scalar_one_or_none()
 
+    if user_by_username and user_by_username.is_verified:
+        if not user_by_email or user_by_email.id != user_by_username.id:
+            raise HTTPException(400, "Username is already taken")
+
+    target_user = user_by_email or user_by_username
     otp_code = f"{random.randint(100000, 999999)}"
+    now = datetime.utcnow()
 
-    if user and not user.is_verified:
-        user.username = data.username
-        user.password_hash = hash_password(data.password)
-        user.verification_otp = otp_code
+    if target_user and not target_user.is_verified:
+        target_user.email = data.email
+        target_user.username = data.username
+        target_user.password_hash = hash_password(data.password)
+        target_user.verification_otp = otp_code
+        target_user.last_otp_sent_at = now
         await db.commit()
-        await db.refresh(user)
+        await db.refresh(target_user)
+        user = target_user
     else:
         user = User(
             email=data.email,
@@ -38,6 +47,7 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
             password_hash=hash_password(data.password),
             is_verified=False,
             verification_otp=otp_code,
+            last_otp_sent_at=now,
         )
         db.add(user)
         await db.commit()
@@ -92,8 +102,21 @@ async def resend_otp(
     if not user:
         raise HTTPException(404, "Account not found")
 
+    if user.is_verified:
+        return {"status": "success", "message": "Account is already verified"}
+
+    now = datetime.utcnow()
+    COOLDOWN_SECONDS = 60
+
+    if user.last_otp_sent_at:
+        elapsed = (now - user.last_otp_sent_at).total_seconds()
+        if elapsed < COOLDOWN_SECONDS:
+            remaining = int(COOLDOWN_SECONDS - elapsed)
+            raise HTTPException(429, f"Please wait {remaining} seconds before requesting a new verification code.")
+
     otp_code = f"{random.randint(100000, 999999)}"
     user.verification_otp = otp_code
+    user.last_otp_sent_at = now
     await db.commit()
 
     send_otp_email(user.email, otp_code)
