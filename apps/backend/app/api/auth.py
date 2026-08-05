@@ -13,30 +13,39 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register")
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(User).where(User.email == data.email))
-    if existing.scalar_one_or_none():
+    existing_email = await db.execute(select(User).where(User.email == data.email))
+    user = existing_email.scalar_one_or_none()
+
+    if user and user.is_verified:
         raise HTTPException(400, "Email address is already registered")
 
-    existing_username = await db.execute(select(User).where(User.username == data.username))
+    existing_username = await db.execute(select(User).where(User.username == data.username, User.id != (user.id if user else 0)))
     if existing_username.scalar_one_or_none():
         raise HTTPException(400, "Username is already taken")
 
     otp_code = f"{random.randint(100000, 999999)}"
 
-    user = User(
-        email=data.email,
-        username=data.username,
-        password_hash=hash_password(data.password),
-        is_verified=False,
-        verification_otp=otp_code,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    if user and not user.is_verified:
+        user.username = data.username
+        user.password_hash = hash_password(data.password)
+        user.verification_otp = otp_code
+        await db.commit()
+        await db.refresh(user)
+    else:
+        user = User(
+            email=data.email,
+            username=data.username,
+            password_hash=hash_password(data.password),
+            is_verified=False,
+            verification_otp=otp_code,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
-    default_profile = Profile(account_id=user.id, name=user.username)
-    db.add(default_profile)
-    await db.commit()
+        default_profile = Profile(account_id=user.id, name=user.username)
+        db.add(default_profile)
+        await db.commit()
 
     send_otp_email(user.email, otp_code)
 
