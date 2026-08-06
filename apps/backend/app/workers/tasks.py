@@ -105,6 +105,7 @@ def process_master_upload(content_id: int, input_path: str):
             )
             
             conn.execute(text("DELETE FROM content_variants WHERE content_id = :id"), {"id": content_id})
+            hls_path_val = str(master_path) if (master_path.exists() and master_path.stat().st_size > 0) else input_path
             for rendition in active_renditions:
                 conn.execute(
                     text("""
@@ -114,7 +115,7 @@ def process_master_upload(content_id: int, input_path: str):
                     {
                         "content_id": content_id,
                         "resolution": rendition["name"],
-                        "hls_path": f"{content_id}/master_source.mp4",
+                        "hls_path": hls_path_val,
                         "bitrate": rendition["bitrate"]
                     }
                 )

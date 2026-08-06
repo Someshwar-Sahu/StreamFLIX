@@ -22,8 +22,29 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
 
     output_root = settings.media_storage_path / str(id)
     master_path = output_root / "master_source.mp4"
-    if master_path.exists():
+    if master_path.exists() and master_path.stat().st_size > 0:
         return FileResponse(master_path, media_type="video/mp4")
+
+    result = await db.execute(select(ContentVariant).where(ContentVariant.content_id == id))
+    variant = result.scalars().first()
+
+    raw_s3_path = variant.hls_path if (variant and variant.hls_path) else None
+
+    if raw_s3_path and raw_s3_path.startswith("/"):
+        parts = raw_s3_path.lstrip("/").split("/", 1)
+        if len(parts) == 2:
+            bucket_name, s3_key = parts[0], parts[1]
+            for bucket_provider in storage_manager.buckets:
+                if bucket_provider.bucket_name == bucket_name and bucket_provider.client:
+                    try:
+                        presigned_url = bucket_provider.client.generate_presigned_url(
+                            "get_object",
+                            Params={"Bucket": bucket_name, "Key": s3_key},
+                            ExpiresIn=7200
+                        )
+                        return RedirectResponse(url=presigned_url, status_code=302)
+                    except Exception as e:
+                        print(f"[DIRECT VIDEO PRESIGNED B2 ERROR] {e}")
 
     for bucket_provider in storage_manager.buckets:
         if bucket_provider.client:
@@ -32,7 +53,7 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
                 for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
                     if "Contents" in page:
                         for obj in page["Contents"]:
-                            if "raw/" in obj["Key"] or f"/{id}/" in obj["Key"]:
+                            if f"_{id}_" in obj["Key"] or f"/{id}/" in obj["Key"]:
                                 presigned_url = bucket_provider.client.generate_presigned_url(
                                     "get_object",
                                     Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
@@ -40,7 +61,7 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
                                 )
                                 return RedirectResponse(url=presigned_url, status_code=302)
             except Exception as e:
-                print(f"[DIRECT VIDEO B2 ERROR] {e}")
+                print(f"[DIRECT VIDEO B2 FALLBACK ERROR] {e}")
 
     raise HTTPException(status_code=404, detail="Video file not found")
 
