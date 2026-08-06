@@ -38,8 +38,12 @@ def process_master_upload(content_id: int, input_path: str):
     output_root.mkdir(parents=True, exist_ok=True)
     master_path = output_root / "master_source.mp4"
 
+    effective_input = input_path
+    if input_path.startswith("/"):
+        effective_input = f"https://s3.us-east-005.backblazeb2.com{input_path}"
+
     try:
-        metadata = get_source_metadata(input_path)
+        metadata = get_source_metadata(effective_input)
         source_height = metadata["height"]
         duration = metadata["duration"]
 
@@ -48,7 +52,7 @@ def process_master_upload(content_id: int, input_path: str):
             active_renditions = [RENDITIONS[-1]]
 
         cmd_copy = [
-            "ffmpeg", "-y", "-i", input_path,
+            "ffmpeg", "-y", "-i", effective_input,
             "-c", "copy",
             "-movflags", "+faststart+frag_keyframe+empty_moov",
             str(master_path)
@@ -57,7 +61,7 @@ def process_master_upload(content_id: int, input_path: str):
 
         if result.returncode != 0 or not master_path.exists() or master_path.stat().st_size == 0:
             cmd_encode = [
-                "ffmpeg", "-y", "-i", input_path,
+                "ffmpeg", "-y", "-i", effective_input,
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
                 "-g", "96",

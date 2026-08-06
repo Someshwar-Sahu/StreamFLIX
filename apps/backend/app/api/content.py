@@ -324,9 +324,15 @@ async def list_content(
     q: str | None = None,
     category: list[str] | None = Query(None),
     include_episodes: bool = False,
+    status_filter: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     stmt = select(Content).options(selectinload(Content.categories)).distinct()
+
+    if status_filter and status_filter != "all":
+        stmt = stmt.where(Content.status == status_filter)
+    elif not status_filter:
+        stmt = stmt.where(Content.status == "ready")
 
     if not include_episodes and not q:
         episode_content_ids_subq = select(Episode.content_id)

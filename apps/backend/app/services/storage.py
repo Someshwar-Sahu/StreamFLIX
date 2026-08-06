@@ -42,6 +42,7 @@ class BackblazeB2Provider:
                             'AllowedHeaders': ['*'],
                             'AllowedMethods': ['PUT', 'POST', 'GET', 'HEAD'],
                             'AllowedOrigins': ['*'],
+                            'ExposeHeaders': ['ETag', 'x-amz-server-side-encryption', 'x-amz-request-id', 'x-amz-id-2'],
                             'MaxAgeSeconds': 3600
                         }]
                     }
