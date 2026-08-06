@@ -127,7 +127,7 @@ export default function Watch() {
     navigate('/movies');
   };
 
-  const videoSrc = `${API_BASE_URL}/content/${id}/stream/master.m3u8`;
+  const videoSrc = `${API_BASE_URL}/content/${id}/video`;
   const videoTitle = details?.title || `Watching Title #${id}`;
 
   return (

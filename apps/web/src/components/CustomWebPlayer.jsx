@@ -12,7 +12,13 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(contentDuration || 0);
+
+  useEffect(() => {
+    if (contentDuration && contentDuration > 0) {
+      setDuration((prev) => (!prev || !isFinite(prev) || prev === 0 ? Number(contentDuration) : prev));
+    }
+  }, [contentDuration]);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -350,6 +356,8 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
         className="hotstar-video-element"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onDurationChange={handleLoadedMetadata}
+        onLoadedData={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
       />
 
