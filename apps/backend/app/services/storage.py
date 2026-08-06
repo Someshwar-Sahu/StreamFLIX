@@ -47,8 +47,8 @@ class BackblazeB2Provider:
                         }]
                     }
                     self.client.put_bucket_cors(Bucket=self.bucket_name, CORSConfiguration=cors_config)
-                except Exception as e:
-                    print(f"B2 CORS setup note for {self.name}: {e}")
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"Failed to initialize S3 client for {self.name}: {e}")
 
