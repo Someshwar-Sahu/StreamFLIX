@@ -39,15 +39,23 @@ export default function Upload() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
+    const isUploading = isSubmitting || (uploadStats !== null);
+    window.isUploadActive = isUploading;
+    window.dispatchEvent(new CustomEvent("streamflix:upload-state", { detail: { isUploading } }));
+
     function handleBeforeUnload(e) {
-      if (isSubmitting || uploadStats) {
+      if (isUploading) {
         e.preventDefault();
         e.returnValue = "An upload is currently in progress. If you leave or close this page, your upload will be cancelled.";
         return e.returnValue;
       }
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.isUploadActive = false;
+      window.dispatchEvent(new CustomEvent("streamflix:upload-state", { detail: { isUploading: false } }));
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, [isSubmitting, uploadStats]);
 
   useEffect(() => {

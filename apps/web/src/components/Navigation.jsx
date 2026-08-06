@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../api/AuthContext";
 import ProfileModal from "./ProfileModal";
@@ -10,6 +10,13 @@ export default function Navigation() {
     const { currentProfile, role, logout } = useAuth();
     const location = useLocation();
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+
+    useEffect(() => {
+        const handleState = (e) => setIsUploading(!!e.detail?.isUploading);
+        window.addEventListener("streamflix:upload-state", handleState);
+        return () => window.removeEventListener("streamflix:upload-state", handleState);
+    }, []);
 
     if (location.pathname === "/login" || location.pathname === "/profiles") {
         return null;
@@ -32,13 +39,27 @@ export default function Navigation() {
         navLinks.push({ path: '/admin', label: 'Admin' });
     }
 
+    const handleNavClick = (e, path) => {
+        if (isUploading && location.pathname !== path) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert("🛑 Video Upload in Progress!\n\nRe-routing to another page will cancel your current video upload. Please use the red '🛑 Cancel Upload' button on the Upload page if you wish to stop.");
+            return false;
+        }
+    };
+
     const avatarUrl = getValidAvatarUrl(currentProfile?.avatar_url, currentProfile?.id || 1);
 
     return (
         <>
             <header className="nav-header">
                 <div className="nav-left">
-                    <Link to="/" className="nav-logo" style={{ textDecoration: 'none' }}>
+                    <Link
+                        to="/"
+                        className="nav-logo"
+                        style={{ textDecoration: 'none' }}
+                        onClick={(e) => handleNavClick(e, '/')}
+                    >
                         <StreamFlixLogo size={36} showText={true} />
                     </Link>
 
@@ -47,7 +68,8 @@ export default function Navigation() {
                             <Link
                                 key={link.path}
                                 to={link.path}
-                                className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}
+                                className={`nav-link ${location.pathname === link.path ? 'active' : ''} ${isUploading && location.pathname !== link.path ? 'disabled-link' : ''}`}
+                                onClick={(e) => handleNavClick(e, link.path)}
                             >
                                 {link.label}
                             </Link>
@@ -58,7 +80,10 @@ export default function Navigation() {
                 <div className="nav-right">
                     {currentProfile && (
                         <button
-                            onClick={() => setIsProfileModalOpen(true)}
+                            onClick={(e) => {
+                                if (handleNavClick(e, '#profile') === false) return;
+                                setIsProfileModalOpen(true);
+                            }}
                             className="nav-profile-badge"
                             title="Switch or Edit Profile"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 10 }}
@@ -76,7 +101,13 @@ export default function Navigation() {
                             <span className="profile-name">{currentProfile.name}</span>
                         </button>
                     )}
-                    <button onClick={logout} className="nav-logout-btn">
+                    <button
+                        onClick={(e) => {
+                            if (handleNavClick(e, '#logout') === false) return;
+                            logout();
+                        }}
+                        className="nav-logout-btn"
+                    >
                         Logout
                     </button>
                 </div>
