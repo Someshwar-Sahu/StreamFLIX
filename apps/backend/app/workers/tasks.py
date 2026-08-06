@@ -3,8 +3,12 @@ from app.core.config import settings
 import subprocess
 import json
 from sqlalchemy import create_engine, text
+from sqlalchemy.pool import NullPool
 
-sync_engine = create_engine(settings.database_url.replace("+asyncpg", ""))
+sync_engine = create_engine(
+    settings.database_url.replace("+asyncpg", ""),
+    poolclass=NullPool
+)
 
 RENDITIONS = [
     {"name": "1080p", "height": 1080, "bitrate": 4500000},
