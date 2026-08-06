@@ -40,7 +40,24 @@ def process_master_upload(content_id: int, input_path: str):
 
     effective_input = input_path
     if input_path.startswith("/"):
-        effective_input = f"https://s3.us-east-005.backblazeb2.com{input_path}"
+        parts = input_path.lstrip("/").split("/", 1)
+        if len(parts) == 2:
+            bucket_name, s3_key = parts[0], parts[1]
+            try:
+                from app.services.storage import storage_manager
+                for b in storage_manager.buckets:
+                    if b.bucket_name == bucket_name and b.client:
+                        effective_input = b.client.generate_presigned_url(
+                            "get_object",
+                            Params={"Bucket": bucket_name, "Key": s3_key},
+                            ExpiresIn=7200
+                        )
+                        break
+            except Exception as e:
+                print(f"[PRESIGNED GET URL GENERATION ERROR] {e}")
+                effective_input = f"https://s3.us-east-005.backblazeb2.com{input_path}"
+        else:
+            effective_input = f"https://s3.us-east-005.backblazeb2.com{input_path}"
 
     try:
         metadata = get_source_metadata(effective_input)
