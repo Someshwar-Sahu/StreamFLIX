@@ -1,7 +1,7 @@
 import re
 import math
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,35 +10,59 @@ from app.core.config import settings
 from app.models.content import Content, ContentVariant
 from app.services.jit_transcoder import get_or_generate_segment
 from app.services.video_metadata import get_source_metadata
+from app.services.storage import storage_manager
 
 router = APIRouter(prefix="/content", tags=["streaming"])
 
 @router.get("/{id}/stream/master.m3u8")
 async def get_master_playlist(id: int, db: AsyncSession = Depends(get_db)):
     output_root = settings.media_storage_path / str(id)
+    master_path = output_root / "master_source.mp4"
     old_master = output_root / "master.m3u8"
 
-    if old_master.exists() and not (output_root / "master_source.mp4").exists():
+    if old_master.exists() and not master_path.exists():
         return FileResponse(old_master, media_type="application/x-mpegURL")
 
-    result = await db.execute(select(ContentVariant).where(ContentVariant.content_id == id))
-    variants = result.scalars().all()
+    if master_path.exists():
+        result = await db.execute(select(ContentVariant).where(ContentVariant.content_id == id))
+        variants = result.scalars().all()
 
-    if not variants:
-        raise HTTPException(status_code=404, detail="No video variants found.")
+        if not variants:
+            raise HTTPException(status_code=404, detail="No video variants found.")
 
-    playlist_lines = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-INDEPENDENT-SEGMENTS"]
-    for v in variants:
-        raw_bitrate = str(v.bitrate) if v.bitrate is not None else "2200000"
-        if "k" in raw_bitrate:
-            bandwidth = int(raw_bitrate.replace("k", "")) * 1000
-        else:
-            bandwidth = int(raw_bitrate)
-        res_height = v.resolution.replace("p", "")
-        playlist_lines.append(f"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION=1280x{res_height}")
-        playlist_lines.append(f"/content/{id}/stream/{v.resolution}/playlist.m3u8")
+        playlist_lines = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-INDEPENDENT-SEGMENTS"]
+        for v in variants:
+            raw_bitrate = str(v.bitrate) if v.bitrate is not None else "2200000"
+            bandwidth = int(raw_bitrate.replace("k", "")) * 1000 if "k" in raw_bitrate else int(raw_bitrate)
+            res_height = v.resolution.replace("p", "")
+            playlist_lines.append(f"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION=1280x{res_height}")
+            playlist_lines.append(f"/content/{id}/stream/{v.resolution}/playlist.m3u8")
 
-    return Response(content="\n".join(playlist_lines), media_type="application/x-mpegURL")
+        return Response(content="\n".join(playlist_lines), media_type="application/x-mpegURL")
+
+    # Backblaze B2 Storage Fallback: Redirect to authorized presigned GET URL
+    content = await db.get(Content, id)
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    for bucket_provider in storage_manager.buckets:
+        if bucket_provider.client:
+            try:
+                paginator = bucket_provider.client.get_paginator("list_objects_v2")
+                for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
+                    if "Contents" in page:
+                        for obj in page["Contents"]:
+                            if f"_{id}_" in obj["Key"] or f"raw/" in obj["Key"] or obj["Key"].startswith(f"raw/"):
+                                presigned_url = bucket_provider.client.generate_presigned_url(
+                                    "get_object",
+                                    Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
+                                    ExpiresIn=7200
+                                )
+                                return RedirectResponse(url=presigned_url, status_code=302)
+            except Exception as e:
+                print(f"[B2 STREAMING FALLBACK ERROR] {e}")
+
+    raise HTTPException(status_code=404, detail="No video stream available for this content.")
 
 
 @router.get("/{id}/stream/{resolution}/playlist.m3u8")
@@ -55,6 +79,23 @@ async def get_variant_playlist(id: int, resolution: str, db: AsyncSession = Depe
         return FileResponse(legacy_playlist, media_type="application/x-mpegURL")
 
     if not master_path.exists():
+        # Redirect to B2 presigned GET stream URL
+        for bucket_provider in storage_manager.buckets:
+            if bucket_provider.client:
+                try:
+                    paginator = bucket_provider.client.get_paginator("list_objects_v2")
+                    for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
+                        if "Contents" in page:
+                            for obj in page["Contents"]:
+                                if "raw/" in obj["Key"]:
+                                    presigned_url = bucket_provider.client.generate_presigned_url(
+                                        "get_object",
+                                        Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
+                                        ExpiresIn=7200
+                                    )
+                                    return RedirectResponse(url=presigned_url, status_code=302)
+                except Exception as e:
+                    print(f"[B2 VARIANT STREAMING ERROR] {e}")
         raise HTTPException(status_code=404, detail="Master video source not found.")
 
     duration = content.duration

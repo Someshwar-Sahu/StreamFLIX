@@ -65,6 +65,12 @@ export default function CustomWebPlayer({ src, title, initialTime, onProgressRep
               break;
             default:
               hls.destroy();
+              if (video) {
+                video.src = src;
+                video.play().catch((err) => {
+                  if (err.name !== "AbortError") console.warn("Video playback fallback note:", err);
+                });
+              }
               break;
           }
         }
@@ -72,7 +78,7 @@ export default function CustomWebPlayer({ src, title, initialTime, onProgressRep
       return () => {
         hls.destroy();
       };
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else {
       video.src = src;
     }
   }, [src]);
