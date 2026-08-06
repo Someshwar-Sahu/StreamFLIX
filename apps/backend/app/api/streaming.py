@@ -46,6 +46,7 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
                     except Exception as e:
                         print(f"[DIRECT VIDEO PRESIGNED B2 ERROR] {e}")
 
+    title_slug = content.title.lower() if content and content.title else str(id)
     for bucket_provider in storage_manager.buckets:
         if bucket_provider.client:
             try:
@@ -53,7 +54,8 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
                 for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
                     if "Contents" in page:
                         for obj in page["Contents"]:
-                            if f"_{id}_" in obj["Key"] or f"/{id}/" in obj["Key"]:
+                            key_lower = obj["Key"].lower()
+                            if f"_{id}_" in key_lower or f"/{id}/" in key_lower or (len(title_slug) > 3 and title_slug in key_lower):
                                 presigned_url = bucket_provider.client.generate_presigned_url(
                                     "get_object",
                                     Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
