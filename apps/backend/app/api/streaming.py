@@ -14,6 +14,37 @@ from app.services.storage import storage_manager
 
 router = APIRouter(prefix="/content", tags=["streaming"])
 
+@router.get("/{id}/video")
+async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
+    content = await db.get(Content, id)
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    output_root = settings.media_storage_path / str(id)
+    master_path = output_root / "master_source.mp4"
+    if master_path.exists():
+        return FileResponse(master_path, media_type="video/mp4")
+
+    for bucket_provider in storage_manager.buckets:
+        if bucket_provider.client:
+            try:
+                paginator = bucket_provider.client.get_paginator("list_objects_v2")
+                for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
+                    if "Contents" in page:
+                        for obj in page["Contents"]:
+                            if "raw/" in obj["Key"] or f"/{id}/" in obj["Key"]:
+                                presigned_url = bucket_provider.client.generate_presigned_url(
+                                    "get_object",
+                                    Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
+                                    ExpiresIn=7200
+                                )
+                                return RedirectResponse(url=presigned_url, status_code=302)
+            except Exception as e:
+                print(f"[DIRECT VIDEO B2 ERROR] {e}")
+
+    raise HTTPException(status_code=404, detail="Video file not found")
+
+
 @router.get("/{id}/stream/master.m3u8")
 async def get_master_playlist(id: int, db: AsyncSession = Depends(get_db)):
     output_root = settings.media_storage_path / str(id)
@@ -40,29 +71,8 @@ async def get_master_playlist(id: int, db: AsyncSession = Depends(get_db)):
 
         return Response(content="\n".join(playlist_lines), media_type="application/x-mpegURL")
 
-    # Backblaze B2 Storage Fallback: Redirect to authorized presigned GET URL
-    content = await db.get(Content, id)
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-
-    for bucket_provider in storage_manager.buckets:
-        if bucket_provider.client:
-            try:
-                paginator = bucket_provider.client.get_paginator("list_objects_v2")
-                for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
-                    if "Contents" in page:
-                        for obj in page["Contents"]:
-                            if f"_{id}_" in obj["Key"] or f"raw/" in obj["Key"] or obj["Key"].startswith(f"raw/"):
-                                presigned_url = bucket_provider.client.generate_presigned_url(
-                                    "get_object",
-                                    Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
-                                    ExpiresIn=7200
-                                )
-                                return RedirectResponse(url=presigned_url, status_code=302)
-            except Exception as e:
-                print(f"[B2 STREAMING FALLBACK ERROR] {e}")
-
-    raise HTTPException(status_code=404, detail="No video stream available for this content.")
+    # B2 Presigned Stream Fallback
+    return await get_direct_video(id, db)
 
 
 @router.get("/{id}/stream/{resolution}/playlist.m3u8")
@@ -79,24 +89,7 @@ async def get_variant_playlist(id: int, resolution: str, db: AsyncSession = Depe
         return FileResponse(legacy_playlist, media_type="application/x-mpegURL")
 
     if not master_path.exists():
-        # Redirect to B2 presigned GET stream URL
-        for bucket_provider in storage_manager.buckets:
-            if bucket_provider.client:
-                try:
-                    paginator = bucket_provider.client.get_paginator("list_objects_v2")
-                    for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
-                        if "Contents" in page:
-                            for obj in page["Contents"]:
-                                if "raw/" in obj["Key"]:
-                                    presigned_url = bucket_provider.client.generate_presigned_url(
-                                        "get_object",
-                                        Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
-                                        ExpiresIn=7200
-                                    )
-                                    return RedirectResponse(url=presigned_url, status_code=302)
-                except Exception as e:
-                    print(f"[B2 VARIANT STREAMING ERROR] {e}")
-        raise HTTPException(status_code=404, detail="Master video source not found.")
+        return await get_direct_video(id, db)
 
     duration = content.duration
     if not duration or duration <= 0:

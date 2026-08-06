@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import Hls from 'hls.js';
 import '../styles/CustomWebPlayer.css';
 
-export default function CustomWebPlayer({ src, title, initialTime, onProgressReport, onBackPress }) {
+export default function CustomWebPlayer({ src, title, initialTime, contentDuration, onProgressReport, onBackPress }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const hlsRef = useRef(null);
@@ -218,7 +218,12 @@ export default function CustomWebPlayer({ src, title, initialTime, onProgressRep
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const d = videoRef.current.duration;
+      if (!isNaN(d) && isFinite(d) && d > 0) {
+        setDuration(d);
+      } else if (contentDuration && contentDuration > 0) {
+        setDuration(contentDuration);
+      }
       setVideoDimensions({
         width: videoRef.current.videoWidth || 16,
         height: videoRef.current.videoHeight || 9,
