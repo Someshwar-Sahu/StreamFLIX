@@ -26,10 +26,10 @@ from app.workers.tasks import process_master_upload
 
 import io
 import base64
-from PIL import Image
 
 def compress_poster_to_base64_webp(image_bytes: bytes, max_width: int = 400, max_height: int = 600, quality: int = 75) -> str:
     try:
+        from PIL import Image
         img = Image.open(io.BytesIO(image_bytes))
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
@@ -39,8 +39,13 @@ def compress_poster_to_base64_webp(image_bytes: bytes, max_width: int = 400, max
         encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
         return f"data:image/webp;base64,{encoded}"
     except Exception as e:
-        print(f"[POSTER WEBP COMPRESSION ERROR] {e}")
-        return ""
+        print(f"[POSTER WEBP COMPRESSION NOTE] {e}")
+        # Fallback to direct base64 image data URI
+        try:
+            encoded = base64.b64encode(image_bytes).decode("utf-8")
+            return f"data:image/jpeg;base64,{encoded}"
+        except Exception:
+            return ""
 
 from pydantic import BaseModel
 from datetime import datetime

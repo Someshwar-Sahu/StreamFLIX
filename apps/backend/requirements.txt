@@ -13,3 +13,4 @@ redis
 email-validator
 boto3
 celery
+pillow
