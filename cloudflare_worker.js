@@ -1,11 +1,19 @@
 // Cloudflare Worker for StreamFlix Backblaze B2 CDN Proxy
-// Deploy this script in your Cloudflare Dashboard -> Workers -> streamflix-cdn
+// Deployed at: https://streamflix-cdn.a93767093.workers.dev
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request) {
     const url = new URL(request.url);
 
-    // Handle Preflight CORS Requests
+    // 1. Root health check
+    if (url.pathname === "/" || url.pathname === "") {
+      return new Response("StreamFlix Cloudflare CDN Proxy is Active & Live 🚀", {
+        status: 200,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+
+    // 2. Handle CORS Preflight Requests
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -18,25 +26,25 @@ export default {
       });
     }
 
-    // Target Backblaze B2 S3 endpoint
+    // 3. Target your Backblaze B2 us-east-005 endpoint
     const b2Origin = "https://s3.us-east-005.backblazeb2.com";
     const targetUrl = new URL(url.pathname + url.search, b2Origin);
 
-    // Forward original request headers (especially Range headers for video scrubbing)
+    // 4. Forward Range headers for video scrubbing
     const newHeaders = new Headers(request.headers);
     newHeaders.set("Host", "s3.us-east-005.backblazeb2.com");
 
-    // Fetch from Backblaze B2 over Bandwidth Alliance ($0 Egress) with Cloudflare Edge Caching
+    // 5. Fetch from Backblaze B2 over Bandwidth Alliance ($0 Egress)
     const response = await fetch(targetUrl.toString(), {
       method: request.method,
       headers: newHeaders,
       cf: {
         cacheEverything: true,
-        cacheTtl: 86400,
+        cacheTtl: 2592000,
       },
     });
 
-    // Attach permissive CORS headers to the response
+    // 6. Attach CORS headers for video streaming
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set("Access-Control-Allow-Origin", "*");
     responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
