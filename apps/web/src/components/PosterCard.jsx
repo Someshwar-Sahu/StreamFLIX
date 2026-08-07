@@ -8,7 +8,7 @@ export default function PosterCard({ to, title, posterUrl, status, progressPct, 
   const finalPoster = resolveMediaUrl(rawPoster);
   const finalStatus = status || item?.status;
   const itemType = item?.type || "movie";
-  const itemId = item?.id;
+  const itemId = item?.id || item?.content_id;
   const finalTo = to || (itemType === "series" ? `/series/${itemId}` : `/watch/${itemId}`);
 
   return (

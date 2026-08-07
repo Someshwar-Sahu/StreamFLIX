@@ -137,7 +137,7 @@ export default function Watch() {
           src={videoSrc}
           title={videoTitle}
           initialTime={details?.resume_progress_seconds}
-          contentDuration={details?.content?.duration}
+          contentDuration={details?.content?.duration || details?.duration_seconds}
           onBackPress={() => navigate(-1)}
           onProgressReport={handleProgressReport}
         />

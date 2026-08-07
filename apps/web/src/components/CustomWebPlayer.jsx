@@ -370,6 +370,8 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
         onLoadedMetadata={handleLoadedMetadata}
         onDurationChange={handleLoadedMetadata}
         onLoadedData={handleLoadedMetadata}
+        onCanPlay={handleLoadedMetadata}
+        onPlay={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
       />
 
