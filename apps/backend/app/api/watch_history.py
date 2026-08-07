@@ -43,7 +43,14 @@ async def get_continue_watching(
     profile_id: int = Depends(get_current_profile_id),
 ):
     result = await db.execute(
-        select(WatchHistory.content_id, Content.title, WatchHistory.progress_seconds, WatchHistory.duration_seconds, WatchHistory.last_watched_at)
+        select(
+            WatchHistory.content_id,
+            Content.title,
+            Content.thumbnail_url,
+            WatchHistory.progress_seconds,
+            WatchHistory.duration_seconds,
+            WatchHistory.last_watched_at,
+        )
         .join(Content, Content.id == WatchHistory.content_id)
         .where(WatchHistory.profile_id == profile_id)
         .where(Content.status == "ready")
