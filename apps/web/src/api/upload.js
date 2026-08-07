@@ -202,6 +202,19 @@ export async function uploadMovie({ title, description, categoryNames, file, pos
         upload_id: initRes.data.upload_id,
         parts,
       });
+
+      if (poster) {
+        try {
+          const pForm = new FormData();
+          pForm.append("poster", poster);
+          await api.post(`/content/${initRes.data.content_id}/poster`, pForm, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } catch (pErr) {
+          console.warn("Poster upload note:", pErr);
+        }
+      }
+
       return compRes.data;
     } catch (err) {
       if (err.message === "CANCELLED") {

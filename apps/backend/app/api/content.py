@@ -24,6 +24,24 @@ from app.services.rating_service import get_content_rating_summary
 from app.services.watch_history_service import get_resume_progress
 from app.workers.tasks import process_master_upload
 
+import io
+import base64
+from PIL import Image
+
+def compress_poster_to_base64_webp(image_bytes: bytes, max_width: int = 400, max_height: int = 600, quality: int = 75) -> str:
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="WEBP", quality=quality, method=4)
+        encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
+        return f"data:image/webp;base64,{encoded}"
+    except Exception as e:
+        print(f"[POSTER WEBP COMPRESSION ERROR] {e}")
+        return ""
+
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -210,18 +228,8 @@ async def complete_direct_upload(
     content.status = "processing"
     
     if poster:
-        poster_dir = settings.media_storage_path / str(content.id)
-        poster_dir.mkdir(parents=True, exist_ok=True)
-        ext = poster.filename.split(".")[-1] if "." in poster.filename else "jpg"
-        poster_path = poster_dir / f"poster.{ext}"
-        CHUNK_SIZE = 8 * 1024 * 1024
-        with open(poster_path, "wb") as f:
-            while True:
-                chunk = await poster.read(CHUNK_SIZE)
-                if not chunk:
-                    break
-                f.write(chunk)
-        content.thumbnail_url = f"/media/{content.id}/poster.{ext}"
+        poster_bytes = await poster.read()
+        content.thumbnail_url = compress_poster_to_base64_webp(poster_bytes)
     
     await db.commit()
     
@@ -231,6 +239,27 @@ async def complete_direct_upload(
         select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
     )
     return res.scalar_one()
+
+@router.post("/{content_id}/poster")
+async def upload_content_poster(
+    content_id: int,
+    poster: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_uploader),
+):
+    content = await db.get(Content, content_id)
+    if not content:
+        raise HTTPException(404, "Content not found")
+    
+    poster_bytes = await poster.read()
+    webp_data_uri = compress_poster_to_base64_webp(poster_bytes)
+    if not webp_data_uri:
+        raise HTTPException(400, "Invalid poster image file")
+    
+    content.thumbnail_url = webp_data_uri
+    await db.commit()
+    await db.refresh(content)
+    return {"status": "success", "thumbnail_url": content.thumbnail_url}
 
 @router.delete("/{content_id}/cancel-upload")
 async def cancel_upload(
