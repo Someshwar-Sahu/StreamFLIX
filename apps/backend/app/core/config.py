@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     brevo_api_key: str = ""
 
+    cloudflare_cdn_url: str = ""
+
     b2_acc1_endpoint: str = "https://s3.us-east-005.backblazeb2.com"
     b2_acc1_access_key: str = ""
     b2_acc1_secret_key: str = ""

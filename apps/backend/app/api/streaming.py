@@ -14,6 +14,13 @@ from app.services.storage import storage_manager
 
 router = APIRouter(prefix="/content", tags=["streaming"])
 
+def format_cdn_url(url: str) -> str:
+    if settings.cloudflare_cdn_url:
+        cdn_base = settings.cloudflare_cdn_url.rstrip("/")
+        url = url.replace("https://s3.us-east-005.backblazeb2.com", cdn_base)
+        url = url.replace("http://s3.us-east-005.backblazeb2.com", cdn_base)
+    return url
+
 @router.get("/{id}/video")
 async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
     content = await db.get(Content, id)
@@ -42,7 +49,7 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
                             Params={"Bucket": bucket_name, "Key": s3_key},
                             ExpiresIn=7200
                         )
-                        return RedirectResponse(url=presigned_url, status_code=302)
+                        return RedirectResponse(url=format_cdn_url(presigned_url), status_code=302)
                     except Exception as e:
                         print(f"[DIRECT VIDEO PRESIGNED B2 ERROR] {e}")
 
@@ -61,7 +68,7 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
                                     Params={"Bucket": bucket_provider.bucket_name, "Key": obj["Key"]},
                                     ExpiresIn=7200
                                 )
-                                return RedirectResponse(url=presigned_url, status_code=302)
+                                return RedirectResponse(url=format_cdn_url(presigned_url), status_code=302)
             except Exception as e:
                 print(f"[DIRECT VIDEO B2 FALLBACK ERROR] {e}")
 
