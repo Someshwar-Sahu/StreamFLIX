@@ -230,10 +230,22 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
       } else if (contentDuration && contentDuration > 0) {
         setDuration(contentDuration);
       }
-      setVideoDimensions({
-        width: videoRef.current.videoWidth || 16,
-        height: videoRef.current.videoHeight || 9,
-      });
+      const w = videoRef.current.videoWidth || 1920;
+      const h = videoRef.current.videoHeight || 1080;
+      setVideoDimensions({ width: w, height: h });
+
+      // Automatically construct smooth, selectable quality tiers if not already supplied by HLS
+      if (levels.length === 0) {
+        const standardQualities = [];
+        if (h >= 1080) standardQualities.push({ height: 1080, bitrate: 4500000 });
+        if (h >= 720) standardQualities.push({ height: 720, bitrate: 2500000 });
+        if (h >= 480) standardQualities.push({ height: 480, bitrate: 1200000 });
+        if (standardQualities.length === 0) {
+          standardQualities.push({ height: h || 720, bitrate: 2000000 });
+        }
+        setLevels(standardQualities);
+      }
+
       if (initialTime && initialTime > 3 && !hasResumedRef.current) {
         hasResumedRef.current = true;
         videoRef.current.currentTime = initialTime;
