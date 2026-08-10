@@ -12,13 +12,15 @@ export default function Upload() {
   const cancelUploadRef = useRef(null);
   const { showToast } = useToast();
 
+  // Movie state
   const [mTitle, setMTitle] = useState("");
   const [mDesc, setMDesc] = useState("");
   const [mCategoriesList, setMCategoriesList] = useState([]);
   const [mFile, setMFile] = useState(null);
   const [mPoster, setMPoster] = useState(null);
 
-  const [seriesMode, setSeriesMode] = useState("new");
+  // Series state
+  const [seriesMode, setSeriesMode] = useState("new"); // "new" | "existing"
   const [existingSeriesList, setExistingSeriesList] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [seasonsList, setSeasonsList] = useState([]);
@@ -68,6 +70,9 @@ export default function Upload() {
     if (selectedSeries) {
       getSeriesDetail(selectedSeries.id).then((detail) => {
         setSeasonsList(detail.seasons || []);
+        if (detail.seasons && detail.seasons.length > 0) {
+          setSeasonId(detail.seasons[0].id);
+        }
       }).catch(() => {});
     }
   }, [selectedSeries]);
@@ -118,11 +123,86 @@ export default function Upload() {
     }
   }
 
+  async function handleCreateSeries(e) {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const created = await createSeries({
+        title: sTitle,
+        description: sDesc,
+        categories: sCategoriesList,
+        posterFile: sPoster,
+      });
+      setSeriesId(created.id);
+      setSelectedSeries(created);
+      showToast(`Series "${sTitle}" created! Now add Season 1 and your first episode.`, "success");
+    } catch (err) {
+      showToast(err.response?.data?.detail || "Failed to create series", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCreateSeason(e) {
+    e.preventDefault();
+    const targetSeriesId = seriesId || selectedSeries?.id;
+    if (!targetSeriesId) {
+      showToast("Please select or create a series first", "warning");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const createdSeason = await createSeason(targetSeriesId, seasonNumber);
+      setSeasonId(createdSeason.id);
+      showToast(`Season ${seasonNumber} created successfully!`, "success");
+    } catch (err) {
+      showToast(err.response?.data?.detail || "Failed to create season", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleUploadEpisode(e) {
+    e.preventDefault();
+    const targetSeriesId = seriesId || selectedSeries?.id;
+    if (!targetSeriesId || !seasonId || !epFile) {
+      showToast("Please select a series, season, and video file", "warning");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await uploadEpisode({
+        seriesId: targetSeriesId,
+        seasonId: seasonId,
+        episodeNumber: epNumber,
+        title: epTitle,
+        file: epFile,
+        onProgress: (stats) => setUploadStats(stats),
+        cancelRef: cancelUploadRef,
+      });
+
+      showToast(`Episode ${epNumber} uploaded successfully!`, "success");
+      setEpTitle("");
+      setEpNumber((prev) => prev + 1);
+      setEpFile(null);
+      setUploadStats(null);
+      navigate(`/series/${targetSeriesId}`);
+    } catch (err) {
+      if (err.message !== "Upload cancelled by user") {
+        showToast(err.response?.data?.detail || err.message || "Failed to upload episode", "error");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.container}>
         <h1 className={styles.heading}>Creator Studio</h1>
-        <p className={styles.subText}>Upload and publish feature films, series, and high-definition media.</p>
+        <p className={styles.subText}>Upload and publish feature films, series, and multi-season content.</p>
 
         <div className={styles.tabs}>
           <button
@@ -188,7 +268,7 @@ export default function Upload() {
               {uploadStats && (
                 <div className={styles.progressBox}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#ffffff", fontWeight: 700 }}>
-                    <span>Uploading Video...</span>
+                    <span>Uploading Video File...</span>
                     <span>{uploadStats.progressPct}%</span>
                   </div>
                   <div className={styles.progressBar}>
@@ -209,6 +289,184 @@ export default function Upload() {
                 {isSubmitting ? "Uploading Video File..." : "Publish Movie to Catalog"}
               </button>
             </form>
+          </div>
+        )}
+
+        {tab === "series" && (
+          <div className={styles.card}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+              <button
+                type="button"
+                className={`${styles.tab} ${seriesMode === "new" ? styles.tabActive : ""}`}
+                onClick={() => setSeriesMode("new")}
+              >
+                1. Create New Series
+              </button>
+              <button
+                type="button"
+                className={`${styles.tab} ${seriesMode === "existing" ? styles.tabActive : ""}`}
+                onClick={() => setSeriesMode("existing")}
+              >
+                2. Add Episode to Existing Series
+              </button>
+            </div>
+
+            {seriesMode === "new" && !seriesId && (
+              <form onSubmit={handleCreateSeries}>
+                <label className={styles.label}>Series Title</label>
+                <input
+                  className={styles.input}
+                  placeholder="e.g. Stranger Signals"
+                  value={sTitle}
+                  onChange={(e) => setSTitle(e.target.value)}
+                  required
+                />
+
+                <label className={styles.label}>Series Synopsis</label>
+                <textarea
+                  className={styles.input}
+                  style={{ height: 90, padding: 14, resize: "vertical" }}
+                  placeholder="Overview of the series..."
+                  value={sDesc}
+                  onChange={(e) => setSDesc(e.target.value)}
+                />
+
+                <label className={styles.label}>Categories & Genres</label>
+                <CategoryTagSelector
+                  selectedCategories={sCategoriesList}
+                  onChange={setSCategoriesList}
+                />
+
+                <label className={styles.label}>Series Cover Poster</label>
+                <input
+                  className={styles.fileInput}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setSPoster(e.target.files[0])}
+                />
+
+                <button className={styles.submit} type="submit" disabled={isSubmitting}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>add_circle</span>
+                  Create Series & Proceed to Episodes
+                </button>
+              </form>
+            )}
+
+            {(seriesMode === "existing" || seriesId) && (
+              <div>
+                {seriesMode === "existing" && !seriesId && (
+                  <div style={{ marginBottom: 20 }}>
+                    <label className={styles.label}>Select Target Series</label>
+                    <select
+                      className={styles.input}
+                      value={selectedSeries?.id || ""}
+                      onChange={(e) => {
+                        const s = existingSeriesList.find((item) => item.id === Number(e.target.value));
+                        setSelectedSeries(s || null);
+                      }}
+                      required
+                    >
+                      <option value="">-- Choose Series --</option>
+                      {existingSeriesList.map((s) => (
+                        <option key={s.id} value={s.id}>{s.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Season selection / creation */}
+                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, marginBottom: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <span className={styles.subHeading}>Season Setup</span>
+                  </div>
+
+                  <div className={styles.row}>
+                    <div>
+                      <label className={styles.label}>Season Number</label>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min="1"
+                        value={seasonNumber}
+                        onChange={(e) => setSeasonNumber(Number(e.target.value))}
+                      />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "flex-end" }}>
+                      <button
+                        type="button"
+                        onClick={handleCreateSeason}
+                        className={styles.submit}
+                        style={{ height: 48, marginTop: 0 }}
+                        disabled={isSubmitting || !(seriesId || selectedSeries?.id)}
+                      >
+                        Create Season {seasonNumber}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Episode Upload Form */}
+                <form onSubmit={handleUploadEpisode}>
+                  <h3 className={styles.subHeading} style={{ marginTop: 24 }}>Upload Episode Video</h3>
+
+                  <div className={styles.row}>
+                    <div>
+                      <label className={styles.label}>Episode Number</label>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min="1"
+                        value={epNumber}
+                        onChange={(e) => setEpNumber(Number(e.target.value))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className={styles.label}>Episode Title</label>
+                      <input
+                        className={styles.input}
+                        placeholder="e.g. Chapter 1: The Vanishing"
+                        value={epTitle}
+                        onChange={(e) => setEpTitle(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <label className={styles.label}>Episode Video File (MP4, MKV, WebM)</label>
+                  <input
+                    className={styles.fileInput}
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) => setEpFile(e.target.files[0])}
+                    required
+                  />
+
+                  {uploadStats && (
+                    <div className={styles.progressBox}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#ffffff", fontWeight: 700 }}>
+                        <span>Uploading Episode Video...</span>
+                        <span>{uploadStats.progressPct}%</span>
+                      </div>
+                      <div className={styles.progressBar}>
+                        <div className={styles.progressFill} style={{ width: `${uploadStats.progressPct}%` }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}>
+                        <span>Speed: {uploadStats.speedMbps} Mbps</span>
+                        <span>ETA: {uploadStats.etaSec}s remaining</span>
+                      </div>
+                      <button type="button" onClick={handleCancelUpload} className={styles.cancelBtn}>
+                        Cancel Upload
+                      </button>
+                    </div>
+                  )}
+
+                  <button className={styles.submit} type="submit" disabled={isSubmitting || !seasonId || !epFile}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>cloud_upload</span>
+                    {isSubmitting ? "Uploading Episode..." : "Publish Episode"}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </div>

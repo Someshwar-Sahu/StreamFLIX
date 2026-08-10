@@ -459,10 +459,18 @@ async def delete_content(
     if user_role != "admin" and content.uploaded_by != user_id:
         raise HTTPException(403, "You can only delete content that you uploaded")
 
+    # 1. Delete local media & cache
     content_dir = settings.media_storage_path / str(content_id)
     if content_dir.exists():
         try:
             shutil.rmtree(content_dir)
+        except Exception:
+            pass
+
+    cache_content_dir = settings.media_storage_path / "cache" / str(content_id)
+    if cache_content_dir.exists():
+        try:
+            shutil.rmtree(cache_content_dir)
         except Exception:
             pass
 
@@ -473,7 +481,36 @@ async def delete_content(
                 f.unlink()
             except Exception:
                 pass
-        
+
+    # 2. Delete remote video files from Backblaze B2 bucket pool
+    for bucket_provider in storage_manager.buckets:
+        if bucket_provider.client:
+            try:
+                paginator = bucket_provider.client.get_paginator("list_objects_v2")
+                for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
+                    if "Contents" in page:
+                        for obj in page["Contents"]:
+                            key = obj["Key"]
+                            key_lower = key.lower()
+                            if (
+                                f"_{content_id}_" in key_lower
+                                or f"/{content_id}/" in key_lower
+                                or key.startswith(f"raw/{content_id}_")
+                                or key.startswith(f"media/{content_id}/")
+                                or key.startswith(f"variants/{content_id}/")
+                            ):
+                                try:
+                                    bucket_provider.client.delete_object(
+                                        Bucket=bucket_provider.bucket_name,
+                                        Key=key
+                                    )
+                                    print(f"[B2 DELETE] Deleted {key} from {bucket_provider.bucket_name}")
+                                except Exception as del_err:
+                                    print(f"[B2 DELETE OBJ ERROR] {del_err}")
+            except Exception as e:
+                print(f"[B2 POOL DELETE ERROR] {e}")
+
+    # 3. Clean up database records
     await db.execute(delete(ContentVariant).where(ContentVariant.content_id == content_id))
     await db.execute(delete(Rating).where(Rating.content_id == content_id))
     await db.execute(delete(WatchHistory).where(WatchHistory.content_id == content_id))

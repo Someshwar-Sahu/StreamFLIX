@@ -285,13 +285,89 @@ async def delete_series(
     user_id: int = Depends(require_uploader),
     user_role: str = Depends(get_current_user_role),
 ):
-    series = await db.get(Series, series_id)
+    from app.services.storage import storage_manager
+    from app.models.content_variant import ContentVariant
+    from sqlalchemy import delete
+
+    res = await db.execute(
+        select(Series)
+        .options(selectinload(Series.seasons).selectinload(Season.episodes))
+        .where(Series.id == series_id)
+    )
+    series = res.scalar_one_or_none()
     if not series:
         raise HTTPException(404, "Series not found")
     
     if user_role != "admin" and series.uploaded_by != user_id:
         raise HTTPException(403, "You can only delete series that you uploaded")
-    
+
+    content_ids = [
+        ep.content_id
+        for season in (series.seasons or [])
+        for ep in (season.episodes or [])
+        if ep.content_id
+    ]
+
+    for cid in content_ids:
+        # Delete local media and cache
+        content_dir = settings.media_storage_path / str(cid)
+        if content_dir.exists():
+            try:
+                shutil.rmtree(content_dir)
+            except Exception:
+                pass
+
+        cache_content_dir = settings.media_storage_path / "cache" / str(cid)
+        if cache_content_dir.exists():
+            try:
+                shutil.rmtree(cache_content_dir)
+            except Exception:
+                pass
+
+        raw_dir = settings.media_storage_path / "raw"
+        if raw_dir.exists():
+            for f in raw_dir.glob(f"{cid}_*"):
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+
+        # Delete remote video files from Backblaze B2 pool
+        for bucket_provider in storage_manager.buckets:
+            if bucket_provider.client:
+                try:
+                    paginator = bucket_provider.client.get_paginator("list_objects_v2")
+                    for page in paginator.paginate(Bucket=bucket_provider.bucket_name):
+                        if "Contents" in page:
+                            for obj in page["Contents"]:
+                                key = obj["Key"]
+                                key_lower = key.lower()
+                                if (
+                                    f"_{cid}_" in key_lower
+                                    or f"/{cid}/" in key_lower
+                                    or key.startswith(f"raw/{cid}_")
+                                    or key.startswith(f"media/{cid}/")
+                                    or key.startswith(f"variants/{cid}/")
+                                ):
+                                    try:
+                                        bucket_provider.client.delete_object(
+                                            Bucket=bucket_provider.bucket_name,
+                                            Key=key
+                                        )
+                                        print(f"[B2 DELETE SERIES EP] Deleted {key} from {bucket_provider.bucket_name}")
+                                    except Exception as del_err:
+                                        print(f"[B2 DELETE OBJ ERROR] {del_err}")
+                except Exception as e:
+                    print(f"[B2 POOL DELETE ERROR] {e}")
+
+        await db.execute(delete(ContentVariant).where(ContentVariant.content_id == cid))
+        await db.execute(delete(Rating).where(Rating.content_id == cid))
+        await db.execute(delete(WatchHistory).where(WatchHistory.content_id == cid))
+        await db.execute(delete(Watchlist).where(Watchlist.content_id == cid))
+        await db.execute(delete(Content).where(Content.id == cid))
+
+    await db.execute(delete(Rating).where(Rating.series_id == series_id))
+    await db.execute(delete(Watchlist).where(Watchlist.series_id == series_id))
     await db.delete(series)
     await db.commit()
     return {"status": "deleted"}
