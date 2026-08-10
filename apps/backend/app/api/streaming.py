@@ -77,32 +77,26 @@ async def get_direct_video(id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/{id}/stream/master.m3u8")
 async def get_master_playlist(id: int, db: AsyncSession = Depends(get_db)):
-    output_root = settings.media_storage_path / str(id)
-    master_path = output_root / "master_source.mp4"
-    old_master = output_root / "master.m3u8"
+    content = await db.get(Content, id)
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
 
-    if old_master.exists() and not master_path.exists():
-        return FileResponse(old_master, media_type="application/x-mpegURL")
-
-    if master_path.exists():
-        result = await db.execute(select(ContentVariant).where(ContentVariant.content_id == id))
-        variants = result.scalars().all()
-
-        if not variants:
-            raise HTTPException(status_code=404, detail="No video variants found.")
-
-        playlist_lines = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-INDEPENDENT-SEGMENTS"]
-        for v in variants:
-            raw_bitrate = str(v.bitrate) if v.bitrate is not None else "2200000"
-            bandwidth = int(raw_bitrate.replace("k", "")) * 1000 if "k" in raw_bitrate else int(raw_bitrate)
-            res_height = v.resolution.replace("p", "")
-            playlist_lines.append(f"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION=1280x{res_height}")
-            playlist_lines.append(f"/content/{id}/stream/{v.resolution}/playlist.m3u8")
-
-        return Response(content="\n".join(playlist_lines), media_type="application/x-mpegURL")
-
-    # B2 Presigned Stream Fallback
-    return await get_direct_video(id, db)
+    playlist_lines = [
+        "#EXTM3U",
+        "#EXT-X-VERSION:3",
+        "#EXT-X-INDEPENDENT-SEGMENTS",
+        "#EXT-X-STREAM-INF:BANDWIDTH=4500000,RESOLUTION=1920x1080,NAME=\"1080p\"",
+        f"/content/{id}/stream/1080p/playlist.m3u8",
+        "#EXT-X-STREAM-INF:BANDWIDTH=2200000,RESOLUTION=1280x720,NAME=\"720p\"",
+        f"/content/{id}/stream/720p/playlist.m3u8",
+        "#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,NAME=\"480p\"",
+        f"/content/{id}/stream/480p/playlist.m3u8",
+    ]
+    return Response(
+        content="\n".join(playlist_lines),
+        media_type="application/x-mpegURL",
+        headers={"Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*"}
+    )
 
 
 @router.get("/{id}/stream/{resolution}/playlist.m3u8")
@@ -111,51 +105,34 @@ async def get_variant_playlist(id: int, resolution: str, db: AsyncSession = Depe
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
 
-    output_root = settings.media_storage_path / str(id)
-    master_path = output_root / "master_source.mp4"
-    legacy_playlist = output_root / resolution / "playlist.m3u8"
-
-    if legacy_playlist.exists() and not master_path.exists():
-        return FileResponse(legacy_playlist, media_type="application/x-mpegURL")
-
-    if not master_path.exists():
-        return await get_direct_video(id, db)
-
     duration = content.duration
     if not duration or duration <= 0:
-        try:
-            meta = get_source_metadata(str(master_path))
-            duration = int(meta["duration"])
-        except Exception:
-            duration = 0
+        duration = 5400  # Default 90 mins fallback if not yet probed
 
-    if not duration or duration <= 0:
-        raise HTTPException(status_code=500, detail="Could not determine video duration.")
-
-    num_segments = math.ceil(duration / 4.0)
+    SEG_LEN = 10.0
+    num_segments = math.ceil(duration / SEG_LEN)
     playlist_lines = [
         "#EXTM3U",
         "#EXT-X-VERSION:3",
-        "#EXT-X-TARGETDURATION:4",
+        "#EXT-X-TARGETDURATION:10",
         "#EXT-X-MEDIA-SEQUENCE:0"
     ]
 
     for i in range(num_segments):
-        seg_duration = min(4.0, duration - i * 4.0)
+        seg_duration = min(SEG_LEN, duration - i * SEG_LEN)
         playlist_lines.append(f"#EXTINF:{seg_duration:.6f},")
         playlist_lines.append(f"/content/{id}/stream/{resolution}/segment_{i}.ts")
 
     playlist_lines.append("#EXT-X-ENDLIST")
-    return Response(content="\n".join(playlist_lines), media_type="application/x-mpegURL")
+    return Response(
+        content="\n".join(playlist_lines),
+        media_type="application/x-mpegURL",
+        headers={"Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*"}
+    )
 
 
 @router.get("/{id}/stream/{resolution}/{segment_file}")
 async def stream_segment(id: int, resolution: str, segment_file: str):
-    output_root = settings.media_storage_path / str(id)
-    legacy_segment = output_root / resolution / segment_file
-    if legacy_segment.exists():
-        return FileResponse(legacy_segment, media_type="video/mp2t")
-
     match = re.search(r"(\d+)", segment_file)
     if not match:
         raise HTTPException(status_code=400, detail="Invalid segment filename")
@@ -163,8 +140,17 @@ async def stream_segment(id: int, resolution: str, segment_file: str):
     index = int(match.group(1))
     try:
         segment_path = get_or_generate_segment(content_id=id, resolution=resolution, segment_index=index)
-        return FileResponse(segment_path, media_type="video/mp2t")
+        return FileResponse(
+            segment_path,
+            media_type="video/mp2t",
+            headers={
+                "Cache-Control": "public, max-age=2592000, s-maxage=2592000, immutable",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges, ETag"
+            }
+        )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Video master file not found")
     except Exception as e:
+        print(f"[STREAM SEGMENT ERROR] {e}")
         raise HTTPException(status_code=500, detail=str(e))

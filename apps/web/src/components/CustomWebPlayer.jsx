@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import Hls from 'hls.js';
 import '../styles/CustomWebPlayer.css';
 
-export default function CustomWebPlayer({ src, title, initialTime, contentDuration, onProgressReport, onBackPress }) {
+export default function CustomWebPlayer({ src, fallbackSrc, title, initialTime, contentDuration, onProgressReport, onBackPress }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const hlsRef = useRef(null);
@@ -11,7 +11,7 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
   const hasResumedRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(initialTime || 0);
   const [duration, setDuration] = useState(contentDuration || 0);
 
   useEffect(() => {
@@ -47,8 +47,8 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
         backBufferLength: 30,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        fragLoadingTimeOut: 15000,
-        fragLoadingMaxRetry: 5,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 4,
         nudgeMaxRetry: 5,
       });
       hlsRef.current = hls;
@@ -72,7 +72,7 @@ export default function CustomWebPlayer({ src, title, initialTime, contentDurati
             default:
               hls.destroy();
               if (video) {
-                video.src = src;
+                video.src = fallbackSrc || src;
                 video.play().catch((err) => {
                   if (err.name !== "AbortError") console.warn("Video playback fallback note:", err);
                 });

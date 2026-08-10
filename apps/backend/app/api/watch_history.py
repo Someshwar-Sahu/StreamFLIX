@@ -13,12 +13,24 @@ from datetime import datetime
 
 router = APIRouter(prefix="/watch-history", tags=["watch-history"])
 
+from sqlalchemy import delete, select, or_
+
 @router.post("")
 async def update_progress(
     payload: WatchProgressIn,
     db: AsyncSession = Depends(get_db),
     profile_id: int = Depends(get_current_profile_id),
 ):
+    # Auto-cleanup if user watched >= 90% of the video (finished/credits)
+    if payload.duration_seconds and payload.duration_seconds > 0 and payload.progress_seconds >= 0.90 * payload.duration_seconds:
+        await db.execute(
+            delete(WatchHistory)
+            .where(WatchHistory.profile_id == profile_id)
+            .where(WatchHistory.content_id == payload.content_id)
+        )
+        await db.commit()
+        return {"status": "completed_cleaned"}
+
     stmt = pg_insert(WatchHistory).values(
         profile_id=profile_id,
         content_id=payload.content_id,
@@ -54,6 +66,13 @@ async def get_continue_watching(
         .join(Content, Content.id == WatchHistory.content_id)
         .where(WatchHistory.profile_id == profile_id)
         .where(Content.status == "ready")
+        .where(
+            or_(
+                WatchHistory.duration_seconds.is_(None),
+                WatchHistory.duration_seconds <= 0,
+                WatchHistory.progress_seconds < 0.90 * WatchHistory.duration_seconds
+            )
+        )
         .order_by(WatchHistory.last_watched_at.desc())
         .limit(20)
     )
