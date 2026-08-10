@@ -127,16 +127,14 @@ export default function Watch() {
     navigate('/movies');
   };
 
-  const hlsStreamSrc = `${API_BASE_URL}/content/${id}/stream/master.m3u8`;
-  const directFallbackSrc = `${API_BASE_URL}/content/${id}/video`;
+  const videoSrc = `${API_BASE_URL}/content/${id}/video`;
   const videoTitle = details?.title || `Watching Title #${id}`;
 
   return (
     <div className="page-container padded">
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         <CustomWebPlayer
-          src={hlsStreamSrc}
-          fallbackSrc={directFallbackSrc}
+          src={videoSrc}
           title={videoTitle}
           initialTime={details?.resume_progress_seconds}
           contentDuration={details?.content?.duration || details?.duration_seconds}
