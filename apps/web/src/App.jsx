@@ -18,6 +18,9 @@ import SettingsPage from './pages/SettingsPage';
 import Login from './pages/Login';
 import ProfilePicker from './pages/ProfilePicker';
 
+import { ToastProvider } from './context/ToastContext';
+import Footer from './components/Footer';
+
 function ProtectedRoute({ children }) {
   const { token, profileToken } = useAuth();
   if (!token) {
@@ -44,30 +47,37 @@ const RouterComponent = HashRouter;
 
 export default function App() {
   return (
-    <AuthProvider>
-      <RouterComponent>
-        <Navigation />
-        <Routes>
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/profiles" element={<ProfilePicker />} />
+    <ToastProvider>
+      <AuthProvider>
+        <RouterComponent>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
+            <Navigation />
+            <main style={{ flex: 1, width: '100%' }}>
+              <Routes>
+                <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                <Route path="/profiles" element={<ProfilePicker />} />
 
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-          <Route path="/myspace" element={<ProtectedRoute><MySpace /></ProtectedRoute>} />
-          <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-          <Route path="/watchlist" element={<ProtectedRoute><WatchlistPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="/movies" element={<ProtectedRoute><Movies /></ProtectedRoute>} />
-          <Route path="/series" element={<ProtectedRoute><SeriesPage /></ProtectedRoute>} />
-          <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-          <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
-          <Route path="/watch/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
-          <Route path="/series/:id" element={<ProtectedRoute><SeriesDetail /></ProtectedRoute>} />
-          <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+                <Route path="/myspace" element={<ProtectedRoute><MySpace /></ProtectedRoute>} />
+                <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+                <Route path="/watchlist" element={<ProtectedRoute><WatchlistPage /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                <Route path="/movies" element={<ProtectedRoute><Movies /></ProtectedRoute>} />
+                <Route path="/series" element={<ProtectedRoute><SeriesPage /></ProtectedRoute>} />
+                <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+                <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+                <Route path="/watch/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
+                <Route path="/series/:id" element={<ProtectedRoute><SeriesDetail /></ProtectedRoute>} />
+                <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </RouterComponent>
-    </AuthProvider>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </RouterComponent>
+      </AuthProvider>
+    </ToastProvider>
   );
 }

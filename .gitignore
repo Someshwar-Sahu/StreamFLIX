@@ -26,3 +26,5 @@ apps/mobile/package-lock.json
 docs/deployment_guide.md
 docs/development_guide.md
 implementation_plan.md
+tests/
+apps/backend/tests/

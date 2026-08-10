@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../api/AuthContext';
 import { getCategories } from '../api/catalog';
 import api from '../api/client';
-import '../styles/Catalog.module.css';
+import AnimatedModal from '../components/AnimatedModal';
+import { useToast } from '../context/ToastContext';
 
 export default function Categories() {
   const { role } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [categories, setCategories] = useState([]);
   const [newCatName, setNewCatName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     if (role !== 'admin' && role !== 'uploader') {
@@ -34,72 +36,81 @@ export default function Categories() {
   async function handleAddCategory(e) {
     e.preventDefault();
     if (!newCatName.trim()) return;
-    setError('');
     try {
       await api.post('/categories', { name: newCatName.trim() });
+      showToast(`Category "${newCatName.trim()}" added successfully!`, 'success');
       setNewCatName('');
       fetchCategories();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add category');
+      showToast(err.response?.data?.detail || 'Failed to add category', 'error');
     }
   }
 
-  async function handleDeleteCategory(id, name) {
-    if (!window.confirm(`Are you sure you want to delete category "${name}"?`)) return;
-    setError('');
+  async function confirmDeleteCategory() {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/categories/${id}`);
+      await api.delete(`/categories/${deleteTarget.id}`);
+      showToast(`Category "${deleteTarget.name}" deleted.`, 'info');
+      setDeleteTarget(null);
       fetchCategories();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to delete category');
+      showToast(err.response?.data?.detail || 'Failed to delete category', 'error');
     }
   }
 
   if (role !== 'admin' && role !== 'uploader') return null;
 
   return (
-    <div className="page-container padded" style={{ maxWidth: 900, margin: '0 auto' }}>
-      <h1 className="page-heading">Category Management</h1>
-      <p style={{ color: '#8A8F98', marginBottom: 24 }}>
-        Add, view, or remove content categories available for uploaders and content classification.
-      </p>
+    <div className="page-container" style={{ maxWidth: 880, margin: '0 auto' }}>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+          Category & Genre Studio
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 4 }}>
+          Manage global classification tags and genres for movies and series.
+        </p>
+      </div>
 
-      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 36 }}>
         <input
           type="text"
-          placeholder="New Category Name (e.g. Anime, K-Drama)..."
+          placeholder="New Category Name (e.g. Cyberpunk, Anime, Docuseries)..."
           value={newCatName}
           onChange={(e) => setNewCatName(e.target.value)}
           style={{
             flex: 1,
-            padding: 12,
-            background: '#171B24',
+            height: 48,
+            padding: '0 20px',
+            background: 'var(--bg-surface-low)',
             border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 8,
-            color: '#F5F5F0',
+            borderRadius: 10,
+            color: '#ffffff',
             fontSize: 14,
+            outline: 'none',
           }}
           required
         />
         <button
           type="submit"
           style={{
-            padding: '12px 24px',
-            background: '#F2A93B',
-            color: '#0D1117',
+            padding: '0 28px',
+            background: 'var(--primary-red)',
+            color: '#ffffff',
             border: 'none',
-            borderRadius: 8,
+            borderRadius: 10,
+            fontFamily: 'var(--font-body)',
             fontWeight: 700,
+            fontSize: 14,
             cursor: 'pointer',
+            boxShadow: '0 4px 14px var(--primary-glow)',
+            transition: 'all 0.2s ease',
           }}
         >
-          + Add Category
+          Add Genre
         </button>
       </form>
 
-      {error && <div style={{ color: '#EF476F', marginBottom: 16 }}>{error}</div>}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
         {categories.map((cat) => (
           <div
             key={cat.id}
@@ -107,29 +118,51 @@ export default function Categories() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '14px 16px',
-              background: '#171B24',
+              padding: '16px 20px',
+              background: 'var(--bg-surface-low)',
               border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 10,
+              borderRadius: 12,
+              transition: 'all 0.25s ease',
             }}
           >
-            <span style={{ color: '#F5F5F0', fontWeight: 600, fontSize: 14 }}>{cat.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="material-symbols-outlined" style={{ color: 'var(--primary-red)', fontSize: 20 }}>
+                label
+              </span>
+              <span style={{ color: '#ffffff', fontWeight: 600, fontSize: 14 }}>{cat.name}</span>
+            </div>
             <button
-              onClick={() => handleDeleteCategory(cat.id, cat.name)}
+              onClick={() => setDeleteTarget(cat)}
               style={{
-                background: 'none',
-                border: 'none',
-                color: '#EF476F',
-                fontSize: 16,
+                background: 'rgba(229, 9, 20, 0.1)',
+                border: '1px solid rgba(229, 9, 20, 0.25)',
+                color: '#ffb4aa',
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: 'pointer',
+                transition: 'all 0.2s ease',
               }}
               title="Delete Category"
             >
-              🗑️
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
             </button>
           </div>
         ))}
       </div>
+
+      <AnimatedModal
+        isOpen={!!deleteTarget}
+        title="Delete Category"
+        message={`Are you sure you want to remove the category "${deleteTarget?.name}"?`}
+        type="danger"
+        confirmText="Delete"
+        onConfirm={confirmDeleteCategory}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

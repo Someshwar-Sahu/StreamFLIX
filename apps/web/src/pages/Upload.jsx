@@ -1,14 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadMovie, createSeries, createSeason, uploadEpisode } from "../api/upload";
 import { getSeries, getSeriesDetail } from "../api/catalog";
 import CategoryTagSelector from "../components/CategoryTagSelector";
+import { useToast } from "../context/ToastContext";
 import styles from "../styles/Upload.module.css";
 
 export default function Upload() {
   const [tab, setTab] = useState("movie");
   const navigate = useNavigate();
   const cancelUploadRef = useRef(null);
+  const { showToast } = useToast();
 
   const [mTitle, setMTitle] = useState("");
   const [mDesc, setMDesc] = useState("");
@@ -35,18 +37,16 @@ export default function Upload() {
 
   const [uploadStats, setUploadStats] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    const isUploading = isSubmitting || (uploadStats !== null);
+    const isUploading = isSubmitting || uploadStats !== null;
     window.isUploadActive = isUploading;
     window.dispatchEvent(new CustomEvent("streamflix:upload-state", { detail: { isUploading } }));
 
     function handleBeforeUnload(e) {
       if (isUploading) {
         e.preventDefault();
-        e.returnValue = "An upload is currently in progress. If you leave or close this page, your upload will be cancelled.";
+        e.returnValue = "An upload is in progress. Leaving will cancel your upload.";
         return e.returnValue;
       }
     }
@@ -60,117 +60,59 @@ export default function Upload() {
 
   useEffect(() => {
     if (tab === "series") {
-      getSeries()
-        .then((list) => setExistingSeriesList(list || []))
-        .catch(() => {});
+      getSeries().then((list) => setExistingSeriesList(list || [])).catch(() => {});
     }
   }, [tab]);
 
-  function handleUserCancelUpload() {
+  useEffect(() => {
+    if (selectedSeries) {
+      getSeriesDetail(selectedSeries.id).then((detail) => {
+        setSeasonsList(detail.seasons || []);
+      }).catch(() => {});
+    }
+  }, [selectedSeries]);
+
+  const handleCancelUpload = () => {
     if (cancelUploadRef.current) {
-      cancelUploadRef.current();
+      cancelUploadRef.current("Upload cancelled by user");
+      cancelUploadRef.current = null;
     }
     setUploadStats(null);
     setIsSubmitting(false);
-    setError("Upload cancelled by user.");
-  }
+    showToast("Upload process was cancelled.", "info");
+  };
 
   async function handleMovieSubmit(e) {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (!mFile) {
+      showToast("Please select a video file to upload", "warning");
+      return;
+    }
+
     setIsSubmitting(true);
-    setError(""); setSuccess(""); setUploadStats(null);
     try {
       await uploadMovie({
         title: mTitle,
         description: mDesc,
-        categoryNames: mCategoriesList.join(","),
+        categories: mCategoriesList,
         file: mFile,
-        poster: mPoster,
+        posterFile: mPoster,
         onProgress: (stats) => setUploadStats(stats),
-        onCancelRef: (fn) => { cancelUploadRef.current = fn; },
+        cancelRef: cancelUploadRef,
       });
-      navigate("/");
+
+      showToast(`Movie "${mTitle}" uploaded successfully!`, "success");
+      setMTitle("");
+      setMDesc("");
+      setMCategoriesList([]);
+      setMFile(null);
+      setMPoster(null);
+      setUploadStats(null);
+      navigate("/movies");
     } catch (err) {
-      if (err.message === "CANCELLED") {
-        setError("Upload cancelled by user.");
-      } else {
-        setError(err.response?.data?.detail || err.message || "Upload failed");
+      if (err.message !== "Upload cancelled by user") {
+        showToast(err.response?.data?.detail || err.message || "Failed to upload movie", "error");
       }
-      setUploadStats(null);
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleCreateSeries(e) {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setError(""); setSuccess("");
-    try {
-      const series = await createSeries({
-        title: sTitle,
-        description: sDesc,
-        categoryNames: sCategoriesList.join(","),
-        poster: sPoster,
-      });
-      setSeriesId(series.id);
-      setSuccess(`Series created (#${series.id}). Now add a season.`);
-    } catch (err) {
-      setError(err.response?.data?.detail || "Series creation failed");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleCreateSeason(e) {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setError(""); setSuccess("");
-    try {
-      const season = await createSeason(seriesId, seasonNumber);
-      setSeasonId(season.id);
-      setSuccess(`Season ${season.season_number} created. Now upload episodes.`);
-
-      const detail = await getSeriesDetail(seriesId);
-      setSeasonsList(detail.seasons || []);
-      setEpNumber(1);
-    } catch (err) {
-      setError(err.response?.data?.detail || "Season creation failed");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleUploadEpisode(e) {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setError(""); setSuccess(""); setUploadStats(null);
-    try {
-      await uploadEpisode(seriesId, seasonId, {
-        episodeNumber: epNumber,
-        title: epTitle,
-        file: epFile,
-        onProgress: (stats) => setUploadStats(stats),
-        onCancelRef: (fn) => { cancelUploadRef.current = fn; },
-      });
-      setSuccess(`Episode ${epNumber} uploaded and processing.`);
-      setEpNumber((n) => n + 1);
-      setEpTitle("");
-      setEpFile(null);
-      setUploadStats(null);
-
-      const detail = await getSeriesDetail(seriesId);
-      setSeasonsList(detail.seasons || []);
-    } catch (err) {
-      if (err.message === "CANCELLED") {
-        setError("Upload cancelled by user.");
-      } else {
-        setError(err.response?.data?.detail || err.message || "Episode upload failed");
-      }
-      setUploadStats(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -179,177 +121,96 @@ export default function Upload() {
   return (
     <div className={styles.page}>
       <div className={styles.container}>
-        <h1 className={styles.heading}>Upload Content</h1>
+        <h1 className={styles.heading}>Creator Studio</h1>
+        <p className={styles.subText}>Upload and publish feature films, series, and high-definition media.</p>
 
         <div className={styles.tabs}>
-          <button className={`${styles.tab} ${tab === "movie" ? styles.tabActive : ""}`} onClick={() => setTab("movie")}>Movie</button>
-          <button className={`${styles.tab} ${tab === "series" ? styles.tabActive : ""}`} onClick={() => setTab("series")}>Series</button>
+          <button
+            className={`${styles.tab} ${tab === "movie" ? styles.tabActive : ""}`}
+            onClick={() => setTab("movie")}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>movie</span>
+            Feature Movie
+          </button>
+          <button
+            className={`${styles.tab} ${tab === "series" ? styles.tabActive : ""}`}
+            onClick={() => setTab("series")}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>tv</span>
+            TV Series
+          </button>
         </div>
-
-        {uploadStats && (
-          <div style={{ marginBottom: 20, padding: 16, background: 'rgba(242,169,59,0.1)', border: '1px solid #F2A93B', borderRadius: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: '#F2A93B', fontWeight: 700, fontSize: 14 }}>
-              <span>Uploading Video... {uploadStats.percent}%</span>
-              <span>{uploadStats.loadedMb} MB / {uploadStats.totalMb} MB</span>
-            </div>
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
-              <div style={{ height: '100%', background: '#F2A93B', width: `${uploadStats.percent}%`, transition: 'width 0.2s ease' }} />
-            </div>
-            <button
-              type="button"
-              onClick={handleUserCancelUpload}
-              style={{
-                background: 'rgba(229, 9, 20, 0.2)',
-                border: '1px solid #E50914',
-                color: '#E50914',
-                padding: '6px 14px',
-                borderRadius: 6,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              🛑 Cancel Upload
-            </button>
-          </div>
-        )}
 
         {tab === "movie" && (
           <div className={styles.card}>
             <form onSubmit={handleMovieSubmit}>
-              <label className={styles.label}>Title</label>
-              <input className={styles.input} value={mTitle} onChange={(e) => setMTitle(e.target.value)} required />
+              <label className={styles.label}>Movie Title</label>
+              <input
+                className={styles.input}
+                placeholder="e.g. Interstellar: The Final Frontier"
+                value={mTitle}
+                onChange={(e) => setMTitle(e.target.value)}
+                required
+              />
 
-              <label className={styles.label}>Description</label>
-              <input className={styles.input} value={mDesc} onChange={(e) => setMDesc(e.target.value)} />
+              <label className={styles.label}>Synopsis / Description</label>
+              <textarea
+                className={styles.input}
+                style={{ height: 100, padding: 14, resize: "vertical" }}
+                placeholder="Brief movie synopsis..."
+                value={mDesc}
+                onChange={(e) => setMDesc(e.target.value)}
+              />
 
-              <label className={styles.label}>Select Categories</label>
-              <CategoryTagSelector selectedCategories={mCategoriesList} onChange={setMCategoriesList} />
+              <label className={styles.label}>Categories & Genres</label>
+              <CategoryTagSelector
+                selectedCategories={mCategoriesList}
+                onChange={setMCategoriesList}
+              />
 
-              <label className={styles.label}>Video File</label>
-              <input className={styles.fileInput} type="file" accept="video/*" onChange={(e) => setMFile(e.target.files[0])} required />
+              <label className={styles.label}>Video File (MP4, MKV, WebM)</label>
+              <input
+                className={styles.fileInput}
+                type="file"
+                accept="video/*"
+                onChange={(e) => setMFile(e.target.files[0])}
+                required
+              />
 
-              <label className={styles.label}>Poster (optional)</label>
-              <input className={styles.fileInput} type="file" accept="image/*" onChange={(e) => setMPoster(e.target.files[0])} />
+              <label className={styles.label}>Custom Poster Image (JPEG, PNG, WebP)</label>
+              <input
+                className={styles.fileInput}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setMPoster(e.target.files[0])}
+              />
 
-              <button className={styles.submit} type="submit" disabled={isSubmitting || !!uploadStats}>
-                {uploadStats ? `Uploading (${uploadStats.percent}%)...` : isSubmitting ? "Submitting..." : "Upload Movie"}
+              {uploadStats && (
+                <div className={styles.progressBox}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#ffffff", fontWeight: 700 }}>
+                    <span>Uploading Video...</span>
+                    <span>{uploadStats.progressPct}%</span>
+                  </div>
+                  <div className={styles.progressBar}>
+                    <div className={styles.progressFill} style={{ width: `${uploadStats.progressPct}%` }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}>
+                    <span>Speed: {uploadStats.speedMbps} Mbps</span>
+                    <span>ETA: {uploadStats.etaSec}s remaining</span>
+                  </div>
+                  <button type="button" onClick={handleCancelUpload} className={styles.cancelBtn}>
+                    Cancel Upload
+                  </button>
+                </div>
+              )}
+
+              <button className={styles.submit} type="submit" disabled={isSubmitting}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>cloud_upload</span>
+                {isSubmitting ? "Uploading Video File..." : "Publish Movie to Catalog"}
               </button>
             </form>
           </div>
         )}
-
-        {tab === "series" && (
-          <div className={styles.card}>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-              <button
-                className={`${styles.tab} ${seriesMode === "new" ? styles.tabActive : ""}`}
-                onClick={() => { setSeriesMode("new"); setSeriesId(null); setSeasonId(null); }}
-              >
-                ➕ Create New Series
-              </button>
-              <button
-                className={`${styles.tab} ${seriesMode === "existing" ? styles.tabActive : ""}`}
-                onClick={() => { setSeriesMode("existing"); setSeriesId(null); setSeasonId(null); }}
-              >
-                📺 Select Existing Series
-              </button>
-            </div>
-
-            {seriesMode === "new" && !seriesId && (
-              <form onSubmit={handleCreateSeries}>
-                <p className={styles.subHeading}>Step 1 — Create Series</p>
-                <label className={styles.label}>Title</label>
-                <input className={styles.input} value={sTitle} onChange={(e) => setSTitle(e.target.value)} required />
-
-                <label className={styles.label}>Description</label>
-                <input className={styles.input} value={sDesc} onChange={(e) => setSDesc(e.target.value)} />
-
-                <label className={styles.label}>Select Categories</label>
-                <CategoryTagSelector selectedCategories={sCategoriesList} onChange={setSCategoriesList} />
-
-                <label className={styles.label}>Poster (optional)</label>
-                <input className={styles.fileInput} type="file" accept="image/*" onChange={(e) => setSPoster(e.target.files[0])} />
-
-                <button className={styles.submit} type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create Series"}
-                </button>
-              </form>
-            )}
-
-            {seriesMode === "existing" && (
-              <div style={{ marginBottom: 20 }}>
-                <label className={styles.label}>Choose Existing Series</label>
-                <select
-                  className={styles.input}
-                  onChange={(e) => handleSelectExistingSeries(e.target.value)}
-                  defaultValue=""
-                >
-                  <option value="" disabled>-- Select a Series --</option>
-                  {existingSeriesList.map((s) => (
-                    <option key={s.id} value={s.id}>{s.title}</option>
-                  ))}
-                </select>
-
-                {seriesId && (
-                  <div style={{ marginTop: 16 }}>
-                    <label className={styles.label}>Choose Season</label>
-                    <select
-                      className={styles.input}
-                      value={seasonId || ""}
-                      onChange={(e) => handleSelectSeason(e.target.value)}
-                    >
-                      {seasonsList.map((sec) => (
-                        <option key={sec.id} value={sec.id}>Season {sec.season_number}</option>
-                      ))}
-                    </select>
-
-                    <button
-                      type="button"
-                      style={{ background: 'none', border: 'none', color: '#F2A93B', fontSize: 13, cursor: 'pointer', marginTop: 8, display: 'block' }}
-                      onClick={() => setSeasonId(null)}
-                    >
-                      + Add a New Season
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {seriesId && !seasonId && (
-              <form onSubmit={handleCreateSeason} style={{ marginTop: 16, padding: 16, background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
-                <p className={styles.subHeading}>Add Season {seasonNumber}</p>
-                <label className={styles.label}>Season Number</label>
-                <input className={styles.input} type="number" min="1" value={seasonNumber} onChange={(e) => setSeasonNumber(Number(e.target.value))} required />
-                <button className={styles.submit} type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create Season"}
-                </button>
-              </form>
-            )}
-
-            {seriesId && seasonId && (
-              <form onSubmit={handleUploadEpisode} style={{ marginTop: 16 }}>
-                <p className={styles.subHeading}>Upload Episode {epNumber}</p>
-                <label className={styles.label}>Episode Title (optional)</label>
-                <input className={styles.input} value={epTitle} onChange={(e) => setEpTitle(e.target.value)} placeholder={`e.g. Episode ${epNumber}`} />
-
-                <label className={styles.label}>Video File</label>
-                <input className={styles.fileInput} type="file" accept="video/*" onChange={(e) => setEpFile(e.target.files[0])} required />
-
-                <button className={styles.submit} type="submit" disabled={isSubmitting || !!uploadStats}>
-                  {uploadStats ? `Uploading (${uploadStats.percent}%)...` : isSubmitting ? "Submitting..." : "Upload Episode"}
-                </button>
-                <hr className={styles.divider} />
-                <button type="button" className={styles.tab} onClick={() => navigate("/")}>Done — Go to Catalog</button>
-              </form>
-            )}
-
-            {success && <p className={styles.success}>{success}</p>}
-          </div>
-        )}
-
-        {error && <p className={styles.error}>{error}</p>}
       </div>
     </div>
   );

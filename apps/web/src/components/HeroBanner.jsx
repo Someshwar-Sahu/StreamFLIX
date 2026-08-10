@@ -20,16 +20,26 @@ export default function HeroBanner({ item }) {
       <div className="hero-gradient-overlay" />
 
       <div className="hero-content">
-        <span className="hero-type-badge">{item.type === 'series' ? 'SERIES' : 'MOVIE'}</span>
+        <div className="hero-badge-pill">
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            {item.type === 'series' ? 'tv' : 'movie'}
+          </span>
+          <span>{item.type === 'series' ? 'STREAMFLIX ORIGINAL SERIES' : 'STREAMFLIX ORIGINAL FILM'}</span>
+        </div>
+
         <h1 className="hero-title">{item.title}</h1>
         {item.description && <p className="hero-description">{item.description}</p>}
 
         <div className="hero-actions">
           <Link to={targetLink} className="hero-btn hero-btn-primary">
-            ▶ Play Now
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+              play_arrow
+            </span>
+            Play Now
           </Link>
           <Link to={targetLink} className="hero-btn hero-btn-secondary">
-            ℹ More Info
+            <span className="material-symbols-outlined">info</span>
+            More Info
           </Link>
         </div>
       </div>

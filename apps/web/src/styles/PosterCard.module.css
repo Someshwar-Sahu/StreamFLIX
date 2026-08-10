@@ -1,30 +1,38 @@
 .link {
   text-decoration: none;
-  display: inline-block;
-  width: 160px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .card {
-  width: 160px;
+  width: 190px;
   cursor: pointer;
-  flex-shrink: 0;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .card {
+    width: 140px;
+  }
 }
 
 .posterWrap {
   position: relative;
-  width: 160px;
-  height: 230px;
+  width: 100%;
+  aspect-ratio: 2 / 3;
   border-radius: 10px;
   overflow: hidden;
-  background: #171B24;
-  border: 1px solid rgba(242, 169, 59, 0.1);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  background: var(--bg-surface-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+  will-change: transform, box-shadow;
 }
 
 .card:hover .posterWrap {
-  border-color: #F2A93B;
-  box-shadow: 0 0 20px rgba(242, 169, 59, 0.35);
-  transform: scale(1.04);
+  transform: translateY(-6px) scale(1.05);
+  border-color: var(--primary-red);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.9), 0 0 25px var(--primary-glow);
+  z-index: 30;
 }
 
 .poster {
@@ -32,6 +40,11 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease;
+}
+
+.card:hover .poster {
+  transform: scale(1.04);
 }
 
 .placeholder {
@@ -40,22 +53,122 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
-  font-weight: 600;
-  color: #8A8F98;
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: linear-gradient(135deg, #1e2020 0%, #121414 100%);
 }
 
-.badge {
+.topBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--primary-red);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+
+.qualityBadge {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(13, 17, 23, 0.85);
-  color: #F2A93B;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  padding: 3px 8px;
+  background: rgba(12, 15, 15, 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e2e2;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
   border-radius: 4px;
+  z-index: 5;
+}
+
+/* Slide-Up Metadata Overlay on Hover */
+.overlay {
+  position: absolute;
+  inset-x: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 14px 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.7) 60%, transparent 100%);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 10;
+}
+
+.card:hover .overlay {
+  transform: translateY(0);
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+.matchScore {
+  color: var(--match-green);
+  font-weight: 700;
+}
+
+.ratingTag {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
+.overlayTitle {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlayActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.playCircleBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0c0f0f;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.playCircleBtn:hover {
+  transform: scale(1.15);
+  background: var(--primary-red);
+  color: #ffffff;
 }
 
 .progressTrack {
@@ -64,19 +177,22 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+  z-index: 6;
 }
 
 .progressFill {
   height: 100%;
-  background: #F2A93B;
+  background: var(--primary-red);
+  box-shadow: 0 0 8px var(--primary-glow);
 }
 
 .title {
   margin-top: 8px;
+  font-family: var(--font-body);
   font-size: 13px;
-  color: #F5F5F0;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

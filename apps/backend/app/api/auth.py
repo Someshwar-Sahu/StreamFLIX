@@ -145,3 +145,53 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(400, "Your email is not verified yet. Please check your email for the 6-digit code.")
 
     return TokenResponse(access_token=create_access_token(user.id, user.role))
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    email: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Avoid user enumeration for security, return success message
+        return {"status": "otp_sent", "email": email, "message": "If an account exists with this email, a security code has been sent."}
+
+    otp_code = f"{random.randint(100000, 999999)}"
+    now = datetime.utcnow()
+    user.verification_otp = otp_code
+    user.last_otp_sent_at = now
+    await db.commit()
+
+    try:
+        send_otp_email(user.email, otp_code)
+    except Exception as err:
+        print(f"[FORGOT PASSWORD EMAIL ERROR] {err}")
+
+    return {"status": "otp_sent", "email": user.email, "message": f"Security verification code sent to {user.email}"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    email: str = Form(...),
+    code: str = Form(...),
+    new_password: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(404, "User account not found")
+
+    if user.verification_otp != code.strip():
+        raise HTTPException(400, "Invalid verification code")
+
+    user.password_hash = hash_password(new_password)
+    user.verification_otp = None
+    user.is_verified = True
+    await db.commit()
+
+    return {"status": "success", "message": "Password has been successfully reset. You can now log in."}

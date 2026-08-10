@@ -1,57 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Hls from "hls.js";
 import api, { API_BASE_URL } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import { getContentDetails, toggleWatchlist, rateContent, clearRating } from "../api/interactions";
 import CustomWebPlayer from "../components/CustomWebPlayer";
-import DeleteSafetyModal from "../components/DeleteSafetyModal";
+import AnimatedModal from "../components/AnimatedModal";
+import { useToast } from "../context/ToastContext";
 
 export default function Watch() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { role } = useAuth();
-  const hlsRef = useRef(null);
-  const [levels, setLevels] = useState([]);
-  const [currentLevel, setCurrentLevel] = useState(-1);
+  const { showToast } = useToast();
   const [details, setDetails] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-
-  useEffect(() => {
-    const src = `${API_BASE_URL}/content/${id}/stream/master.m3u8`;
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => setLevels(data.levels));
-      return () => hls.destroy();
-    }
-  }, [id]);
+  const lastSyncedTimeRef = useRef(0);
 
   useEffect(() => {
     getContentDetails(id).then(setDetails).catch(() => {});
   }, [id]);
 
-  const handleSelectLevel = (levelIdx) => {
-    setCurrentLevel(levelIdx);
-    if (hlsRef.current) {
-      hlsRef.current.currentLevel = levelIdx;
-    }
-  };
-
-  const lastSyncedTimeRef = useRef(0)
-
   const handleProgressReport = (currentTime, duration, forceSync = false) => {
-    if (forceSync || (currentTime > 3 && (Math.abs(currentTime - lastSyncedTimeRef.current) >= 15))) {
-      lastSyncedTimeRef.current = currentTime
+    if (forceSync || (currentTime > 3 && Math.abs(currentTime - lastSyncedTimeRef.current) >= 15)) {
+      lastSyncedTimeRef.current = currentTime;
 
       api.post('/watch-history', {
         content_id: Number(id),
         progress_seconds: Math.floor(currentTime),
-        duration_seconds: duration ? Math.floor(duration) : null
-      }).catch(() => {})
+        duration_seconds: duration ? Math.floor(duration) : null,
+      }).catch(() => {});
     }
-  }
+  };
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -59,29 +38,31 @@ export default function Watch() {
         const payload = JSON.stringify({
           content_id: Number(id),
           progress_seconds: Math.floor(lastSyncedTimeRef.current),
-        })
-        const blob = new Blob([payload], { type: 'application/json' })
-        navigator.sendBeacon(`${API_BASE_URL}/watch-history`, blob)
+        });
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon(`${API_BASE_URL}/watch-history`, blob);
       }
-    }
+    };
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    } 
-  }, [id])
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [id]);
 
   async function handleWatchlist() {
     if (!details) return;
-    setDetails((d) => ({ ...d, in_watchlist: !d.in_watchlist }));
+    const willBeInWatchlist = !details.in_watchlist;
+    setDetails((d) => ({ ...d, in_watchlist: willBeInWatchlist }));
     await toggleWatchlist(Number(id), details.in_watchlist);
+    showToast(willBeInWatchlist ? "Saved to your Watchlist!" : "Removed from your Watchlist.", "info");
   }
 
   async function handleRate(value) {
     if (!details) return;
     const oldRating = details.my_rating;
 
-    // Instant Optimistic State Update
+    // Optimistic rating update
     setDetails((prev) => {
       let newLikes = prev.likes || 0;
       let newDislikes = prev.dislikes || 0;
@@ -101,12 +82,7 @@ export default function Watch() {
         }
       }
 
-      return {
-        ...prev,
-        my_rating: newRating,
-        likes: newLikes,
-        dislikes: newDislikes,
-      };
+      return { ...prev, my_rating: newRating, likes: newLikes, dislikes: newDislikes };
     });
 
     try {
@@ -124,6 +100,7 @@ export default function Watch() {
 
   const handleDeleteContent = async () => {
     await api.delete(`/content/${id}`);
+    showToast(`Movie "${details?.title}" deleted successfully.`, "info");
     navigate('/movies');
   };
 
@@ -131,8 +108,8 @@ export default function Watch() {
   const videoTitle = details?.title || `Watching Title #${id}`;
 
   return (
-    <div className="page-container padded">
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <div className="page-container">
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         <CustomWebPlayer
           src={videoSrc}
           title={videoTitle}
@@ -143,74 +120,110 @@ export default function Watch() {
         />
 
         {details && (
-          <div style={{ marginTop: 24 }}>
-            <h1 style={{ color: '#F5F5F0', fontSize: '2rem', marginBottom: 12 }}>{details.title}</h1>
-            <p style={{ color: '#8A8F98', fontSize: '1rem', lineHeight: 1.6, marginBottom: 20 }}>
-              {details.description || 'Enjoy watching on StreamFlix in HD.'}
+          <div style={{ marginTop: 32, padding: '0 8px' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', color: '#ffffff', fontSize: '2.2rem', fontWeight: 800, marginBottom: 12, letterSpacing: '-0.02em' }}>
+              {details.title}
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: 24, maxWidth: 800 }}>
+              {details.description || 'Enjoy watching on StreamFlix in HD with zero buffering.'}
             </p>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 onClick={handleWatchlist}
                 style={{
-                  padding: '10px 18px',
-                  borderRadius: '20px',
-                  border: details.in_watchlist ? '1px solid #F2A93B' : '1px solid rgba(255,255,255,0.15)',
-                  background: details.in_watchlist ? 'rgba(242,169,59,0.15)' : 'rgba(23,27,36,0.8)',
-                  color: details.in_watchlist ? '#F2A93B' : '#F5F5F0',
+                  padding: '10px 22px',
+                  borderRadius: '24px',
+                  border: details.in_watchlist ? '1px solid var(--primary-red)' : '1px solid rgba(255,255,255,0.15)',
+                  background: details.in_watchlist ? 'var(--primary-red)' : 'var(--bg-surface-low)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 600,
+                  fontSize: 14,
                   cursor: 'pointer',
-                  fontWeight: '600',
-                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: details.in_watchlist ? '0 0 16px var(--primary-glow)' : 'none',
+                  transition: 'all 0.25s ease',
                 }}
               >
-                {details.in_watchlist ? '✓ Saved in Watchlist' : '+ Add to Watchlist'}
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                  {details.in_watchlist ? 'check' : 'add'}
+                </span>
+                {details.in_watchlist ? 'Saved in Watchlist' : 'Add to Watchlist'}
               </button>
+
               <button
                 onClick={() => handleRate(1)}
                 style={{
-                  padding: '10px 18px',
-                  borderRadius: '20px',
-                  border: details.my_rating === 1 ? '1px solid #F2A93B' : '1px solid rgba(255,255,255,0.15)',
-                  background: details.my_rating === 1 ? 'rgba(242,169,59,0.2)' : 'rgba(23,27,36,0.8)',
-                  color: details.my_rating === 1 ? '#F2A93B' : '#F5F5F0',
+                  padding: '10px 20px',
+                  borderRadius: '24px',
+                  border: details.my_rating === 1 ? '1px solid var(--primary-red)' : '1px solid rgba(255,255,255,0.15)',
+                  background: details.my_rating === 1 ? 'rgba(229, 9, 20, 0.2)' : 'var(--bg-surface-low)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 600,
+                  fontSize: 14,
                   cursor: 'pointer',
-                  fontWeight: '600',
-                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.25s ease',
                 }}
               >
-                👍 {details.likes}
+                <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: details.my_rating === 1 ? "'FILL' 1" : "'FILL' 0" }}>
+                  thumb_up
+                </span>
+                {details.likes || 0}
               </button>
+
               <button
                 onClick={() => handleRate(-1)}
                 style={{
-                  padding: '10px 18px',
-                  borderRadius: '20px',
-                  border: details.my_rating === -1 ? '1px solid #EF476F' : '1px solid rgba(255,255,255,0.15)',
-                  background: details.my_rating === -1 ? 'rgba(239,71,111,0.2)' : 'rgba(23,27,36,0.8)',
-                  color: details.my_rating === -1 ? '#EF476F' : '#F5F5F0',
+                  padding: '10px 20px',
+                  borderRadius: '24px',
+                  border: details.my_rating === -1 ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.15)',
+                  background: 'var(--bg-surface-low)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 600,
+                  fontSize: 14,
                   cursor: 'pointer',
-                  fontWeight: '600',
-                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.25s ease',
                 }}
               >
-                👎 {details.dislikes}
+                <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: details.my_rating === -1 ? "'FILL' 1" : "'FILL' 0" }}>
+                  thumb_down
+                </span>
+                {details.dislikes || 0}
               </button>
 
               {(role === 'uploader' || role === 'admin') && (
                 <button
                   onClick={() => setIsDeleteOpen(true)}
                   style={{
-                    padding: '10px 18px',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(239, 71, 111, 0.4)',
-                    background: 'rgba(239, 71, 111, 0.15)',
-                    color: '#EF476F',
+                    padding: '10px 20px',
+                    borderRadius: '24px',
+                    border: '1px solid rgba(229, 9, 20, 0.4)',
+                    background: 'rgba(229, 9, 20, 0.15)',
+                    color: '#ffb4aa',
                     cursor: 'pointer',
-                    fontWeight: '600',
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: 600,
+                    fontSize: 14,
                     marginLeft: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    transition: 'all 0.25s ease',
                   }}
                 >
-                  🗑️ Delete Movie
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                  Delete Movie
                 </button>
               )}
             </div>
@@ -218,11 +231,14 @@ export default function Watch() {
         )}
       </div>
 
-      <DeleteSafetyModal
+      <AnimatedModal
         isOpen={isDeleteOpen}
-        title={details?.title || 'this movie'}
+        title="Delete Movie"
+        message={`Are you sure you want to delete "${details?.title || 'this movie'}"? This action cannot be undone.`}
+        type="danger"
+        confirmText="Delete Movie"
         onConfirm={handleDeleteContent}
-        onClose={() => setIsDeleteOpen(false)}
+        onCancel={() => setIsDeleteOpen(false)}
       />
     </div>
   );

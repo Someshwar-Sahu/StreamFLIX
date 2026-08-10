@@ -1,89 +1,194 @@
 .nav-header {
-  height: 64px;
-  background-color: rgba(13, 17, 23, 0.95);
-  backdrop-filter: blur(12px);
+  height: 68px;
+  background-color: rgba(12, 15, 15, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
-  position: sticky;
+  padding: 0 48px;
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 900px) {
+  .nav-header {
+    padding: 0 20px;
+  }
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 36px;
+  gap: 40px;
 }
 
 .nav-logo {
   display: flex;
   align-items: center;
   text-decoration: none;
+  transition: transform 0.25s ease;
+}
+
+.nav-logo:hover {
+  transform: scale(1.04);
+}
+
+.nav-logo:active {
+  transform: scale(0.96);
 }
 
 .nav-links {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  gap: 24px;
+}
+
+@media (max-width: 960px) {
+  .nav-links {
+    display: none;
+  }
 }
 
 .nav-link {
-  color: #8A8F98;
+  color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-family: var(--font-body);
+  font-size: 14px;
   font-weight: 500;
-  transition: color 0.2s ease;
+  padding: 6px 0;
+  position: relative;
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 
-.nav-link:hover, .nav-link.active {
-  color: #F5F5F0;
+.nav-link:hover {
+  color: var(--text-white);
+  transform: scale(1.05);
+}
+
+.nav-link:active {
+  transform: scale(0.95);
 }
 
 .nav-link.active {
-  font-weight: 600;
-  border-bottom: 2px solid #F2A93B;
-  padding-bottom: 4px;
+  color: var(--text-white);
+  font-weight: 700;
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary-red);
+  box-shadow: 0 0 10px var(--primary-glow);
+  border-radius: 2px;
 }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+}
+
+.nav-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.nav-icon-btn:hover {
+  color: var(--text-white);
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.1);
+}
+
+.nav-icon-btn:active {
+  transform: scale(0.9);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--primary-red);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--primary-glow-heavy);
+  animation: pulseGlow 2s infinite ease-in-out;
 }
 
 .nav-profile-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-decoration: none;
-  color: #F5F5F0;
-  padding: 6px 12px;
-  border-radius: 20px;
-  background: #171B24;
-  border: 1px solid rgba(242, 169, 59, 0.3);
+  color: var(--text-white);
+  padding: 4px 12px 4px 4px;
+  border-radius: 24px;
+  background: var(--bg-surface-low);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.25s ease;
 }
 
-.profile-bulb-ring {
-  width: 10px;
-  height: 10px;
+.nav-profile-badge:hover {
+  background: var(--bg-surface-high);
+  border-color: var(--primary-red);
+  box-shadow: 0 0 16px var(--primary-glow);
+  transform: scale(1.03);
+}
+
+.profile-avatar-frame {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background-color: #F2A93B;
-  box-shadow: 0 0 8px #F2A93B;
+  overflow: hidden;
+  border: 2px solid var(--primary-red);
+  background: var(--bg-surface-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-name {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .nav-logout-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #8A8F98;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .nav-logout-btn:hover {
-  color: #F5F5F0;
-  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-white);
+  background: rgba(229, 9, 20, 0.2);
+  border-color: var(--primary-red);
+  box-shadow: 0 0 12px var(--primary-glow);
 }

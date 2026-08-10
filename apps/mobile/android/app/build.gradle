@@ -79,7 +79,7 @@ android {
 
     namespace "com.mobile"
     defaultConfig {
-        applicationId "com.mobile"
+        applicationId "com.streamflix.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

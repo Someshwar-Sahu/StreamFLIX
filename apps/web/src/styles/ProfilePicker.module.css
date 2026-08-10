@@ -1,92 +1,85 @@
 .stage {
   min-height: 100vh;
-  background: radial-gradient(ellipse at top, #171B24 0%, #0D1117 70%);
+  background: radial-gradient(circle at 50% 30%, #1e2020 0%, var(--bg-canvas) 85%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-body);
+  position: relative;
 }
 
-.logoContainer {
+.logoWrap {
   position: absolute;
-  top: 28px;
-  left: 32px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  top: 32px;
+  left: 48px;
 }
 
-.logoImg {
-  height: 42px;
-  width: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 10px rgba(242, 169, 59, 0.4));
-}
-
-.logoText {
-  font-family: 'Clash Display', 'Inter', sans-serif;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #F5F5F0;
-  letter-spacing: -0.5px;
-}
-
-.gold {
-  color: #F2A93B;
+@media (max-width: 768px) {
+  .logoWrap {
+    left: 20px;
+    top: 20px;
+  }
 }
 
 .heading {
-  font-family: "Clash Display", "Inter", sans-serif;
-  font-size: 44px;
-  font-weight: 600;
-  color: #F5F5F0;
-  letter-spacing: -0.01em;
-  margin-bottom: 48px;
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin-bottom: 56px;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+}
+
+@media (max-width: 768px) {
+  .heading {
+    font-size: 32px;
+    margin-bottom: 36px;
+  }
 }
 
 .grid {
   display: flex;
-  gap: 32px;
+  gap: 36px;
   flex-wrap: wrap;
   justify-content: center;
-  max-width: 820px;
+  max-width: 860px;
 }
 
 .tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   cursor: pointer;
   border: none;
   background: none;
-  opacity: 0;
-  transform: translateY(16px);
-  animation: rise 0.5s ease forwards;
+  animation: modalSpringIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform 0.25s ease;
 }
 
-@keyframes rise {
-  to { opacity: 1; transform: translateY(0); }
+.tile:hover {
+  transform: translateY(-8px);
 }
 
 .ring {
-  width: 128px;
-  height: 128px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   padding: 4px;
-  border: 3px solid rgba(242, 169, 59, 0.15);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
-.tile:hover .ring,
-.tile:focus-visible .ring {
-  border-color: #F2A93B;
-  box-shadow: 0 0 24px rgba(242, 169, 59, 0.45);
-  transform: scale(1.06);
+.tile:hover .ring {
+  border-color: var(--primary-red);
+  box-shadow: 0 0 28px var(--primary-glow-heavy);
+  transform: scale(1.08);
 }
 
 .avatarImg {
@@ -97,59 +90,35 @@
   object-fit: cover;
 }
 
-.avatarFallback {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background-color: #171B24;
-  color: #F2A93B;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  font-weight: 700;
-}
-
 .name {
-  color: #8A8F98;
-  font-size: 15px;
-  font-weight: 500;
-  transition: color 0.2s ease;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  transition: color 0.25s ease;
 }
 
-.tile:hover .name,
-.tile:focus-visible .name {
-  color: #F5F5F0;
+.tile:hover .name {
+  color: #ffffff;
 }
 
 .addRing {
-  width: 128px;
-  height: 128px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  border: 2px dashed rgba(138, 143, 152, 0.4);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8A8F98;
-  font-size: 40px;
-  font-weight: 300;
-  transition: border-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
+  color: var(--text-secondary);
+  font-size: 48px;
+  transition: all 0.3s ease;
 }
 
-.tile:hover .addRing,
-.tile:focus-visible .addRing {
-  border-color: #2EC4B6;
-  color: #2EC4B6;
-  transform: scale(1.06);
-}
-
-.error {
-  color: #EF476F;
-  margin-top: 24px;
-  font-size: 14px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tile { animation: none; opacity: 1; transform: none; }
-  .ring, .name, .addRing { transition: none; }
+.tile:hover .addRing {
+  border-color: var(--primary-red);
+  color: #ffffff;
+  background: rgba(229, 9, 20, 0.15);
+  box-shadow: 0 0 24px var(--primary-glow);
+  transform: scale(1.08);
 }

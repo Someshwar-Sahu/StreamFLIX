@@ -1,10 +1,32 @@
 :root {
-  --bg-dark: #0D1117;
-  --bg-card: #171B24;
-  --accent-amber: #F2A93B;
-  --text-main: #F5F5F0;
-  --text-muted: #8A8F98;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Google Stitch Palette Tokens */
+  --bg-canvas: #0c0f0f;
+  --bg-surface: #121414;
+  --bg-surface-low: #1a1c1c;
+  --bg-surface-card: #1e2020;
+  --bg-surface-high: #282a2b;
+  --bg-surface-highest: #333535;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(229, 9, 20, 0.5);
+
+  /* Brand Accents */
+  --primary-red: #e50914;
+  --primary-hover: #f40612;
+  --primary-glow: rgba(229, 9, 20, 0.4);
+  --primary-glow-heavy: rgba(229, 9, 20, 0.6);
+  --accent-light: #ffb4aa;
+
+  /* Typography Colors */
+  --text-main: #e2e2e2;
+  --text-secondary: #c8c6c5;
+  --text-muted: #8a8f98;
+  --text-white: #ffffff;
+  --match-green: #46d369;
+
+  /* Font Families */
+  --font-display: 'Montserrat', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
   color-scheme: dark;
 }
 
@@ -14,67 +36,236 @@
   padding: 0;
 }
 
+html {
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  background-color: var(--bg-dark);
+  background-color: var(--bg-canvas);
   color: var(--text-main);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
-  background-color: var(--bg-dark);
+  display: flex;
+  flex-direction: column;
 }
 
+/* ==========================================================================
+   KEYFRAME ANIMATIONS ENGINE (60-120 FPS GPU-ACCELERATED)
+   ========================================================================== */
+
+/* 1. Cinematic Staggered Logo Pop */
+@keyframes cinematicPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(12px);
+    filter: blur(6px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) translateY(-2px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.cinematic-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: cinematicPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.10s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.20s; }
+.delay-5 { animation-delay: 0.25s; }
+.delay-6 { animation-delay: 0.30s; }
+.delay-7 { animation-delay: 0.35s; }
+.delay-8 { animation-delay: 0.40s; }
+.delay-9 { animation-delay: 0.45s; }
+.delay-10 { animation-delay: 0.50s; }
+
+/* 2. Ken Burns Hero Background Zoom */
+@keyframes kenBurns {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06) translate(-0.5%, -0.5%);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ken-burns {
+  animation: kenBurns 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* 3. Pulse Glow */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px var(--primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 28px var(--primary-glow-heavy);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+/* 4. Ripple Wave */
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* 5. Shimmer Skeleton Loader */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #1a1c1c 25%, #282a2b 50%, #1a1c1c 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+/* 6. Form Error Shake */
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.shake-error {
+  animation: errorShake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* 7. Modal Spring In */
+@keyframes modalSpringIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-spring-in {
+  animation: modalSpringIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 8. Toast Slide In & Out */
+@keyframes toastSlideIn {
+  from {
+    transform: translate3d(120%, 0, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(120%, 0, 0);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   UTILITY CLASSES & INTERACTIVE STYLES
+   ========================================================================== */
+
+/* Scrollbar Hide */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 3D Poster Card Hover */
+.poster-card {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease;
+  will-change: transform, box-shadow;
+}
+
+.poster-card:hover {
+  transform: translateY(-8px) scale(1.05);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 20px var(--primary-glow);
+  z-index: 20;
+}
+
+/* Page Layout */
 .page-container {
-  padding: 24px 40px;
-  max-width: 1400px;
+  padding: 100px 48px 48px 48px;
+  max-width: 1440px;
   margin: 0 auto;
+  width: 100%;
+  flex: 1;
 }
 
-.page-heading {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin-bottom: 20px;
-  text-align: left;
+@media (max-width: 768px) {
+  .page-container {
+    padding: 84px 20px 32px 20px;
+  }
 }
 
-.category-filter-chips {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
+/* Custom Scrollbar for Main Page */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-
-.chip {
-  padding: 8px 16px;
-  background: var(--bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  color: var(--text-muted);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+::-webkit-scrollbar-track {
+  background: var(--bg-canvas);
 }
-
-.chip.active, .chip:hover {
-  background: var(--accent-amber);
-  border-color: var(--accent-amber);
-  color: #0D1117;
-  font-weight: 600;
+::-webkit-scrollbar-thumb {
+  background: #282a2b;
+  border-radius: 4px;
 }
-
-.poster-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  align-items: flex-start;
-}
-
-.loading-spinner {
-  color: var(--accent-amber);
-  font-weight: 600;
-  padding: 40px 0;
+::-webkit-scrollbar-thumb:hover {
+  background: #333535;
 }

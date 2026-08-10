@@ -1,59 +1,79 @@
 import React from 'react';
 
-export default function StreamFlixLogo({ size = 36, showText = true, className = '' }) {
+export default function StreamFlixLogo({ size = 34, showText = true, className = '' }) {
   return (
-    <div className={`streamflix-logo-wrapper ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+    <div
+      className={`streamflix-brand-logo ${className}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '12px',
+        textDecoration: 'none',
+        userSelect: 'none',
+      }}
+    >
       <svg
         width={size}
         height={size}
         viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ filter: 'drop-shadow(0 2px 10px rgba(255, 149, 0, 0.45))', flexShrink: 0 }}
+        style={{
+          filter: 'drop-shadow(0 2px 12px rgba(229, 9, 20, 0.5))',
+          flexShrink: 0,
+          transition: 'transform 0.3s ease',
+        }}
       >
         <defs>
-          <linearGradient id="sfGradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#E63946" />
-            <stop offset="45%" stopColor="#FF9500" />
-            <stop offset="100%" stopColor="#F2A93B" />
+          <linearGradient id="sfStitchRed" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ff4d5a" />
+            <stop offset="60%" stopColor="#e50914" />
+            <stop offset="100%" stopColor="#930007" />
           </linearGradient>
-          <linearGradient id="sfGradAccent" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#FF0055" />
-            <stop offset="100%" stopColor="#FFC107" />
-          </linearGradient>
-          <filter id="sfGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
         </defs>
 
-        {/* Outer glowing sleek S-ribbon curve */}
+        {/* Dynamic Curved Ribbon Icon */}
         <path
-          d="M 28 24 C 48 14, 78 18, 78 35 C 78 52, 22 48, 22 65 C 22 82, 52 86, 76 76"
-          stroke="url(#sfGradPrimary)"
-          strokeWidth="13"
+          d="M 28 22 C 50 12, 80 16, 80 34 C 80 52, 20 48, 20 66 C 20 84, 50 88, 76 78"
+          stroke="url(#sfStitchRed)"
+          strokeWidth="14"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
-        {/* Center glowing Play Emblem */}
-        <path
-          d="M 45 38 L 65 50 L 45 62 Z"
-          fill="url(#sfGradAccent)"
-          filter="url(#sfGlow)"
+        {/* Center Glowing Play Arrow */}
+        <polygon
+          points="46,38 66,50 46,62"
+          fill="#ffffff"
+          style={{ filter: 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.8))' }}
         />
       </svg>
 
       {showText && (
-        <span style={{
-          fontFamily: "'Clash Display', 'Inter', sans-serif",
-          fontSize: size > 30 ? '1.45rem' : '1.2rem',
-          fontWeight: 800,
-          color: '#F5F5F0',
-          letterSpacing: '-0.5px',
-          lineHeight: 1
-        }}>
-          STREAM<span style={{ color: '#FF9500' }}>FLIX</span>
+        <span
+          style={{
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: size > 30 ? '1.5rem' : '1.25rem',
+            fontWeight: 900,
+            letterSpacing: '-0.03em',
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ color: '#ffffff', display: 'inline-flex' }}>
+            <span className="cinematic-letter delay-1">S</span>
+            <span className="cinematic-letter delay-2">T</span>
+            <span className="cinematic-letter delay-3">R</span>
+            <span className="cinematic-letter delay-4">E</span>
+            <span className="cinematic-letter delay-5">A</span>
+            <span className="cinematic-letter delay-6">M</span>
+          </span>
+          <span style={{ color: '#e50914', display: 'inline-flex' }}>
+            <span className="cinematic-letter delay-7">F</span>
+            <span className="cinematic-letter delay-8">L</span>
+            <span className="cinematic-letter delay-9">I</span>
+            <span className="cinematic-letter delay-10">X</span>
+          </span>
         </span>
       )}
     </div>

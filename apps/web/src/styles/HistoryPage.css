@@ -2,42 +2,42 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 32px;
 }
 
 .history-card {
   display: flex;
   align-items: center;
-  gap: 20px;
-  background: rgba(23, 27, 36, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  gap: 24px;
+  background: var(--bg-surface-low);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 16px;
+  padding: 18px 24px;
   transition: all 0.25s ease;
 }
 
+@media (max-width: 768px) {
+  .history-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}
+
 .history-card:hover {
-  border-color: rgba(242, 169, 59, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: var(--primary-red);
+  transform: translateX(4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px var(--primary-glow);
 }
 
 .history-thumb-wrap {
-  width: 90px;
-  height: 120px;
+  width: 100px;
+  aspect-ratio: 2 / 3;
   border-radius: 8px;
   overflow: hidden;
-  background: #171B24;
+  background: var(--bg-surface-card);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  font-weight: 700;
-  color: #F2A93B;
-  border: 1px solid rgba(242, 169, 59, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .history-thumb-img {
@@ -51,15 +51,17 @@
 }
 
 .history-card-title {
+  font-family: var(--font-body);
   font-size: 18px;
   font-weight: 700;
-  color: #F5F5F0;
+  color: #ffffff;
   margin-bottom: 6px;
 }
 
 .history-card-meta {
+  font-family: var(--font-body);
   font-size: 13px;
-  color: #8A8F98;
+  color: var(--text-secondary);
   margin-bottom: 12px;
   display: flex;
   gap: 12px;
@@ -68,34 +70,36 @@
 .history-progress-track {
   width: 100%;
   max-width: 320px;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 8px;
 }
 
 .history-progress-fill {
   height: 100%;
-  background: #F2A93B;
-  border-radius: 3px;
+  background: var(--primary-red);
+  box-shadow: 0 0 8px var(--primary-glow);
 }
 
 .history-replay-btn {
-  padding: 10px 20px;
-  background: #F2A93B;
-  color: #0D1117;
+  padding: 10px 22px;
+  background: var(--primary-red);
+  color: #ffffff;
   border-radius: 8px;
   text-decoration: none;
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 700;
-  transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  box-shadow: 0 4px 14px var(--primary-glow);
+  transition: all 0.25s ease;
 }
 
 .history-replay-btn:hover {
-  background: #f4b655;
-  transform: scale(1.04);
+  background: var(--primary-hover);
+  transform: scale(1.06);
+  box-shadow: 0 6px 20px var(--primary-glow-heavy);
 }

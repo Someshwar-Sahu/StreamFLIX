@@ -1,162 +1,263 @@
-import React, { useRef, useState, useEffect } from 'react';
-import Hls from 'hls.js';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import '../styles/CustomWebPlayer.css';
 
-export default function CustomWebPlayer({ src, fallbackSrc, title, initialTime, contentDuration, onProgressReport, onBackPress }) {
+export default function CustomWebPlayer({
+  src,
+  title = 'Now Playing',
+  initialTime = 0,
+  contentDuration = 0,
+  onProgressReport,
+  onBackPress,
+}) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
-  const hlsRef = useRef(null);
-  const hideTimerRef = useRef(null);
-  const clickTimerRef = useRef(null);
-  const hasResumedRef = useRef(false);
+  const hideControlsTimerRef = useRef(null);
+  const seekbarRef = useRef(null);
 
+  // Player State
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(initialTime || 0);
   const [duration, setDuration] = useState(contentDuration || 0);
-
-  useEffect(() => {
-    if (contentDuration && contentDuration > 0) {
-      setDuration((prev) => (!prev || !isFinite(prev) || prev === 0 ? Number(contentDuration) : prev));
-    }
-  }, [contentDuration]);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [levels, setLevels] = useState([]);
-  const [currentLevel, setCurrentLevel] = useState(-1);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [qualityLevel, setQualityLevel] = useState('Auto');
+  const [bufferedPercent, setBufferedPercent] = useState(0);
+
+  // Interactive Overlays
+  const [centerPulse, setCenterPulse] = useState(null); // 'play' | 'pause'
+  const [gestureRipple, setGestureRipple] = useState(null); // { type: 'left' | 'right', text: '10s' }
+  const [hoverTime, setHoverTime] = useState(null);
+  const [hoverPosition, setHoverPosition] = useState(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [hoverTime, setHoverTime] = useState(null);
-  const [hoverPos, setHoverPos] = useState(0);
-  const [videoDimensions, setVideoDimensions] = useState({ width: 16, height: 9 });
-
-  const [ripple, setRipple] = useState(null);
 
   const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+  const QUALITY_OPTIONS = ['Auto', '1080p', '720p', '480p'];
 
+  // Resume playback position on initial mount
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video) return;
 
-    if (Hls.isSupported() && (src.includes('.m3u8') || src.includes('/media/'))) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 30,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        fragLoadingTimeOut: 20000,
-        fragLoadingMaxRetry: 4,
-        nudgeMaxRetry: 5,
-      });
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        setLevels(data.levels || []);
-      });
-      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-        setCurrentLevel(data.level);
-      });
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
-              hls.destroy();
-              if (video) {
-                video.src = fallbackSrc || src;
-                video.play().catch((err) => {
-                  if (err.name !== "AbortError") console.warn("Video playback fallback note:", err);
-                });
-              }
-              break;
-          }
-        }
-      });
-      return () => {
-        hls.destroy();
-      };
-    } else {
-      video.src = src;
+    const handleLoadedMetadata = () => {
+      if (video.duration && isFinite(video.duration) && video.duration > 0) {
+        setDuration(video.duration);
+      } else if (contentDuration && contentDuration > 0) {
+        setDuration(contentDuration);
+      }
+
+      if (initialTime && initialTime > 0 && Math.abs(video.currentTime - initialTime) > 1) {
+        video.currentTime = initialTime;
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+  }, [initialTime, contentDuration]);
+
+  // Update Progress & Buffer Tracks
+  const handleTimeUpdate = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    setCurrentTime(video.currentTime);
+
+    // Calculate buffered range
+    if (video.buffered.length > 0 && video.duration > 0) {
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+      setBufferedPercent((bufferedEnd / video.duration) * 100);
     }
-  }, [src]);
 
-  useEffect(() => {
-    if (initialTime && initialTime > 3 && videoRef.current && !hasResumedRef.current) {
-      hasResumedRef.current = true;
-      videoRef.current.currentTime = initialTime;
-      setCurrentTime(initialTime);
+    // Report watch history heartbeat to parent
+    if (onProgressReport) {
+      onProgressReport(video.currentTime, duration || video.duration);
     }
-  }, [initialTime]);
+  };
 
-  const resetHideTimer = () => {
+  // Auto-hide HUD Controls on Inactivity
+  const triggerShowControls = useCallback(() => {
     setShowControls(true);
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => {
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+    }
+    hideControlsTimerRef.current = setTimeout(() => {
       if (isPlaying && !showSpeedMenu && !showQualityMenu) {
         setShowControls(false);
       }
-    }, 3500);
+    }, 3200);
+  }, [isPlaying, showSpeedMenu, showQualityMenu]);
+
+  // Play / Pause Toggle
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      video.play().then(() => {
+        setIsPlaying(true);
+        setCenterPulse('play');
+        setTimeout(() => setCenterPulse(null), 500);
+      }).catch((err) => {
+        if (err.name !== 'AbortError') console.warn('Play error:', err);
+      });
+    } else {
+      video.pause();
+      setIsPlaying(false);
+      setCenterPulse('pause');
+      setTimeout(() => setCenterPulse(null), 500);
+    }
+    triggerShowControls();
+  }, [triggerShowControls]);
+
+  // Seek relative seconds (10s Rewind / Forward)
+  const seekRelative = useCallback((seconds) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const newTime = Math.max(0, Math.min(video.duration || duration || 0, video.currentTime + seconds));
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
+
+    setGestureRipple({
+      type: seconds < 0 ? 'left' : 'right',
+      text: seconds < 0 ? '⏮ 10s' : '10s ⏭',
+    });
+    setTimeout(() => setGestureRipple(null), 700);
+
+    triggerShowControls();
+  }, [duration, triggerShowControls]);
+
+  // Seekbar Click & Drag Scrub
+  const handleSeekClick = (e) => {
+    const rect = seekbarRef.current?.getBoundingClientRect();
+    if (!rect || !videoRef.current) return;
+
+    const clickX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const targetDuration = duration || videoRef.current.duration || 0;
+    const newTime = percentage * targetDuration;
+
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    triggerShowControls();
   };
 
-  useEffect(() => {
-    if (showControls) {
-      resetHideTimer();
-    } else {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    }
-    return () => {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    };
-  }, [isPlaying, showSpeedMenu, showQualityMenu, showControls]);
+  // Hover Tooltip on Seekbar
+  const handleSeekHover = (e) => {
+    const rect = seekbarRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
+    const hoverX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, hoverX / rect.width));
+    const targetDuration = duration || videoRef.current?.duration || 0;
+
+    setHoverPosition(hoverX);
+    setHoverTime(percentage * targetDuration);
+  };
+
+  // Volume & Mute Controls
+  const handleVolumeChange = (newVol) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const vol = parseFloat(newVol);
+    video.volume = vol;
+    setVolume(vol);
+    setIsMuted(vol === 0);
+    triggerShowControls();
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isMuted) {
+      video.muted = false;
+      video.volume = volume > 0 ? volume : 1;
+      setIsMuted(false);
+    } else {
+      video.muted = true;
+      setIsMuted(true);
+    }
+    triggerShowControls();
+  };
+
+  // Speed Change
+  const handleSpeedSelect = (spd) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = spd;
+    }
+    setPlaybackSpeed(spd);
+    setShowSpeedMenu(false);
+    triggerShowControls();
+  };
+
+  // Quality Select
+  const handleQualitySelect = (qual) => {
+    setQualityLevel(qual);
+    setShowQualityMenu(false);
+    triggerShowControls();
+  };
+
+  // Fullscreen Toggle
+  const toggleFullscreen = async () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      try {
+        await container.requestFullscreen();
+        setIsFullscreen(true);
+      } catch (err) {
+        console.warn('Fullscreen request failed:', err);
+      }
+    } else {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+    triggerShowControls();
+  };
+
+  // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (['input', 'textarea'].includes(document.activeElement.tagName.toLowerCase())) return;
+      // Avoid triggering when user is typing in an input
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
-      switch (e.key.toLowerCase()) {
-        case ' ':
-        case 'k':
+      switch (e.code) {
+        case 'Space':
+        case 'KeyK':
           e.preventDefault();
           togglePlay();
           break;
-        case 'f':
+        case 'ArrowLeft':
+        case 'KeyJ':
           e.preventDefault();
-          toggleFullscreen();
+          seekRelative(-10);
           break;
-        case 'm':
+        case 'ArrowRight':
+        case 'KeyL':
+          e.preventDefault();
+          seekRelative(10);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          handleVolumeChange(Math.min(1, volume + 0.1));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          handleVolumeChange(Math.max(0, volume - 0.1));
+          break;
+        case 'KeyM':
           e.preventDefault();
           toggleMute();
           break;
-        case 'arrowleft':
-        case 'j':
+        case 'KeyF':
           e.preventDefault();
-          skipSeconds(-10);
-          triggerRipple('rewind');
-          break;
-        case 'arrowright':
-        case 'l':
-          e.preventDefault();
-          skipSeconds(10);
-          triggerRipple('forward');
-          break;
-        case 'arrowup':
-          e.preventDefault();
-          setVolume((v) => Math.min(1, v + 0.1));
-          if (videoRef.current) videoRef.current.volume = Math.min(1, volume + 0.1);
-          break;
-        case 'arrowdown':
-          e.preventDefault();
-          setVolume((v) => Math.max(0, v - 0.1));
-          if (videoRef.current) videoRef.current.volume = Math.max(0, volume - 0.1);
+          toggleFullscreen();
           break;
         default:
           break;
@@ -165,291 +266,125 @@ export default function CustomWebPlayer({ src, fallbackSrc, title, initialTime, 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [volume, isPlaying]);
+  }, [togglePlay, seekRelative, volume, toggleMute]);
 
-  const triggerRipple = (type) => {
-    setRipple({ type, id: Date.now() });
-    setTimeout(() => setRipple(null), 700);
-  };
-
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-    } else {
-      videoRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleContainerClick = (e) => {
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-
-      const rect = containerRef.current.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const pct = clickX / rect.width;
-
-      if (pct < 0.4) {
-        skipSeconds(-10);
-        triggerRipple('rewind');
-      } else if (pct > 0.6) {
-        skipSeconds(10);
-        triggerRipple('forward');
-      } else {
-        togglePlay();
-      }
-    } else {
-      clickTimerRef.current = setTimeout(() => {
-        setShowControls((prev) => !prev);
-        clickTimerRef.current = null;
-      }, 250);
-    }
-  };
-
-  const skipSeconds = (seconds) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
-  };
-
-  const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
-    const curr = videoRef.current.currentTime;
-    setCurrentTime(curr);
-    if (onProgressReport) {
-      onProgressReport(curr, duration);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      const d = videoRef.current.duration;
-      if (!isNaN(d) && isFinite(d) && d > 0) {
-        setDuration(d);
-      } else if (contentDuration && contentDuration > 0) {
-        setDuration(contentDuration);
-      }
-      const w = videoRef.current.videoWidth || 1920;
-      const h = videoRef.current.videoHeight || 1080;
-      setVideoDimensions({ width: w, height: h });
-
-      // Automatically construct smooth, selectable quality tiers if not already supplied by HLS
-      if (levels.length === 0) {
-        const standardQualities = [];
-        if (h >= 1080) standardQualities.push({ height: 1080, bitrate: 4500000 });
-        if (h >= 720) standardQualities.push({ height: 720, bitrate: 2500000 });
-        if (h >= 480) standardQualities.push({ height: 480, bitrate: 1200000 });
-        if (standardQualities.length === 0) {
-          standardQualities.push({ height: h || 720, bitrate: 2000000 });
-        }
-        setLevels(standardQualities);
-      }
-
-      if (initialTime && initialTime > 3 && !hasResumedRef.current) {
-        hasResumedRef.current = true;
-        videoRef.current.currentTime = initialTime;
-        setCurrentTime(initialTime);
-      }
-    }
-  };
-
-  const handleSeek = (e) => {
-    e.stopPropagation();
-    if (!videoRef.current || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    const newTime = Math.max(0, Math.min(duration, pos * duration));
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-    if (onProgressReport) {
-      onProgressReport(newTime, duration, true);
-    }
-  };
-
-  const handleMouseMoveProgress = (e) => {
-    if (!duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    setHoverTime(pos * duration);
-    setHoverPos(e.clientX - rect.left);
-  };
-
-  const toggleMute = () => {
-    if (!videoRef.current) return;
-    videoRef.current.muted = !isMuted;
-    setIsMuted(!isMuted);
-  };
-
-  const handleVolumeChange = (e) => {
-    const newVol = parseFloat(e.target.value);
-    setVolume(newVol);
-    if (videoRef.current) {
-      videoRef.current.volume = newVol;
-      videoRef.current.muted = newVol === 0;
-      setIsMuted(newVol === 0);
-    }
-  };
-
-  const handleSpeedChange = (speed) => {
-    setPlaybackSpeed(speed);
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
-    }
-    setShowSpeedMenu(false);
-  };
-
-  const handleQualityChange = (levelIdx) => {
-    setCurrentLevel(levelIdx);
-    if (hlsRef.current) {
-      if (levelIdx === -1) {
-        hlsRef.current.currentLevel = -1;
-      } else {
-        hlsRef.current.currentLevel = levelIdx;
-        hlsRef.current.loadLevel = levelIdx;
-      }
-    }
-    setShowQualityMenu(false);
-  };
-
-  const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      try {
-        await containerRef.current.requestFullscreen();
-        setIsFullscreen(true);
-        // Automatic orientation lock based on video dimensions
-        if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-          const isHorizontal = videoDimensions.width >= videoDimensions.height;
-          window.screen.orientation.lock(isHorizontal ? 'landscape' : 'portrait').catch(() => {});
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    } else {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-        if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
-          window.screen.orientation.unlock();
-        }
-      }
-    }
-  };
-
+  // Format Seconds to HH:MM:SS / MM:SS
   const formatTime = (secs) => {
-    if (isNaN(secs) || secs < 0) return '00:00';
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = Math.floor(secs % 60);
+    if (!secs || isNaN(secs) || secs < 0) return '00:00';
+    const totalSecs = Math.floor(secs);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
     if (h > 0) {
       return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
     }
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const currentQualityLabel =
-    currentLevel === -1
-      ? 'Auto'
-      : levels[currentLevel]?.height
-      ? `${levels[currentLevel].height}p`
-      : 'HD';
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div
       ref={containerRef}
-      className={`hotstar-player-container ${isFullscreen ? 'fullscreen' : ''}`}
-      onMouseMove={() => { if (showControls) resetHideTimer(); }}
-      onClick={handleContainerClick}
+      className="player-wrapper"
+      onMouseMove={triggerShowControls}
+      onMouseLeave={() => isPlaying && setShowControls(false)}
     >
+      <div className="player-ambient-glow" />
+
+      {/* Video Element */}
       <video
         ref={videoRef}
-        className="hotstar-video-element"
+        src={src}
+        className="player-video-canvas"
+        onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onDurationChange={handleLoadedMetadata}
-        onLoadedData={handleLoadedMetadata}
-        onCanPlay={handleLoadedMetadata}
-        onPlay={handleLoadedMetadata}
-        onEnded={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setShowControls(true);
+        }}
+        playsInline
       />
 
-      {ripple && (
-        <div className={`gesture-ripple-overlay ${ripple.type}`}>
-          <div className="ripple-circle">
-            <span>{ripple.type === 'rewind' ? '⏮ 10s' : '10s ⏭'}</span>
-          </div>
+      {/* Center Animated Play/Pause Pulse */}
+      {centerPulse && (
+        <div className="player-center-pulse">
+          <span className="material-symbols-outlined" style={{ fontSize: 42 }}>
+            {centerPulse === 'play' ? 'play_arrow' : 'pause'}
+          </span>
         </div>
       )}
 
-      <div className={`hotstar-overlay ${!showControls ? 'hidden' : ''}`}>
-        <div className="hotstar-top-bar" onClick={(e) => e.stopPropagation()}>
-          <div className="hotstar-top-left">
-            {onBackPress && (
-              <button className="hotstar-back-btn" onClick={onBackPress} title="Back">
-                ←
-              </button>
-            )}
-            <div className="hotstar-title-wrap">
-              <span className="hotstar-video-title">{title}</span>
-              <span className="hotstar-badge">FULL HD • STEREO</span>
-            </div>
-          </div>
+      {/* Double-Tap / Gesture Ripple */}
+      {gestureRipple && (
+        <div className={`player-ripple-gesture ${gestureRipple.type === 'left' ? 'player-ripple-left' : 'player-ripple-right'}`}>
+          <span className="material-symbols-outlined" style={{ fontSize: 28 }}>
+            {gestureRipple.type === 'left' ? 'replay_10' : 'forward_10'}
+          </span>
+          <span>{gestureRipple.text}</span>
+        </div>
+      )}
+
+      {/* HUD Controls Layer */}
+      <div className={`player-hud ${showControls ? 'visible' : ''}`}>
+        {/* Top Bar */}
+        <div className="player-top-bar">
+          {onBackPress && (
+            <button className="player-back-btn" onClick={onBackPress} title="Back">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+          )}
+          <span className="player-title">{title}</span>
+          <span className="player-badge-hd">HD 1080p</span>
         </div>
 
-        <div className="hotstar-center-controls">
-          <button className="hotstar-skip-btn" onClick={(e) => { e.stopPropagation(); skipSeconds(-10); triggerRipple('rewind'); }} title="Rewind 10s">
-            <span className="skip-icon">↺</span>
-            <span className="skip-num">10</span>
-          </button>
-
-          <button className="hotstar-main-play-btn" onClick={(e) => { e.stopPropagation(); togglePlay(); }} title={isPlaying ? 'Pause' : 'Play'}>
-            {isPlaying ? (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="#0D1117">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-              </svg>
-            ) : (
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="#0D1117" style={{ marginLeft: 4 }}>
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            )}
-          </button>
-
-          <button className="hotstar-skip-btn" onClick={(e) => { e.stopPropagation(); skipSeconds(10); triggerRipple('forward'); }} title="Forward 10s">
-            <span className="skip-icon">↻</span>
-            <span className="skip-num">10</span>
-          </button>
-        </div>
-
-        <div className="hotstar-bottom-bar" onClick={(e) => e.stopPropagation()}>
+        {/* Bottom HUD */}
+        <div className="player-bottom-hud">
+          {/* Seekbar */}
           <div
-            className="hotstar-progress-container"
-            onClick={handleSeek}
-            onMouseMove={handleMouseMoveProgress}
+            ref={seekbarRef}
+            className="player-seekbar-container"
+            onClick={handleSeekClick}
+            onMouseMove={handleSeekHover}
             onMouseLeave={() => setHoverTime(null)}
           >
             {hoverTime !== null && (
-              <div className="hotstar-time-tooltip" style={{ left: `${hoverPos}px` }}>
+              <div className="player-time-tooltip" style={{ left: `${hoverPosition}px` }}>
                 {formatTime(hoverTime)}
               </div>
             )}
-            <div className="hotstar-progress-track">
-              <div className="hotstar-progress-fill" style={{ width: `${progressPct}%` }}>
-                <div className="hotstar-scrubber-knob" />
-              </div>
+            <div className="player-seekbar-track">
+              <div className="player-seekbar-buffered" style={{ width: `${bufferedPercent}%` }} />
+              <div className="player-seekbar-progress" style={{ width: `${progressPercent}%` }} />
+              <div className="player-seekbar-thumb" style={{ left: `${progressPercent}%` }} />
             </div>
           </div>
 
-          <div className="hotstar-controls-row">
-            <div className="hotstar-left-group">
-              <button className="hotstar-icon-btn" onClick={togglePlay}>
-                {isPlaying ? '⏸' : '▶'}
+          {/* Controls Row */}
+          <div className="player-controls-row">
+            <div className="player-controls-left">
+              <button className="player-btn" onClick={togglePlay} title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32 }}>
+                  {isPlaying ? 'pause' : 'play_arrow'}
+                </span>
               </button>
 
-              <div className="hotstar-volume-group">
-                <button className="hotstar-icon-btn" onClick={toggleMute}>
-                  {isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+              <button className="player-btn" onClick={() => seekRelative(-10)} title="Rewind 10s (Left Arrow)">
+                <span className="material-symbols-outlined">replay_10</span>
+              </button>
+
+              <button className="player-btn" onClick={() => seekRelative(10)} title="Forward 10s (Right Arrow)">
+                <span className="material-symbols-outlined">forward_10</span>
+              </button>
+
+              {/* Volume Group */}
+              <div className="player-volume-group">
+                <button className="player-btn" onClick={toggleMute} title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+                  <span className="material-symbols-outlined">
+                    {isMuted || volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
+                  </span>
                 </button>
                 <input
                   type="range"
@@ -457,78 +392,106 @@ export default function CustomWebPlayer({ src, fallbackSrc, title, initialTime, 
                   max="1"
                   step="0.05"
                   value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  className="hotstar-volume-slider"
+                  onChange={(e) => handleVolumeChange(e.target.value)}
+                  className="player-volume-slider"
+                  title="Volume (Up/Down Arrows)"
                 />
               </div>
 
-              <span className="hotstar-time-label">
-                {formatTime(currentTime)} <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px' }}>/</span> {formatTime(duration)}
-              </span>
+              {/* Time Display */}
+              <div className="player-time-display">
+                <span className="current">{formatTime(currentTime)}</span> / {formatTime(duration)}
+              </div>
             </div>
 
-            <div className="hotstar-right-group">
-              {showSpeedMenu && (
-                <div className="hotstar-popup-menu">
-                  <div className="hotstar-popup-header">Playback Speed</div>
-                  {SPEED_OPTIONS.map((spd) => (
-                    <div
-                      key={spd}
-                      className={`hotstar-popup-item ${playbackSpeed === spd ? 'active' : ''}`}
-                      onClick={() => handleSpeedChange(spd)}
-                    >
-                      <span>{spd === 1 ? '1.0x (Normal)' : `${spd}x`}</span>
-                      {playbackSpeed === spd && <span>✓</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="player-controls-right">
+              {/* Speed Menu Toggle */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="player-btn"
+                  onClick={() => {
+                    setShowSpeedMenu((prev) => !prev);
+                    setShowQualityMenu(false);
+                  }}
+                  title="Playback Speed"
+                  style={{ fontSize: 13, fontWeight: 700 }}
+                >
+                  {playbackSpeed}x
+                </button>
 
-              {showQualityMenu && (
-                <div className="hotstar-popup-menu">
-                  <div className="hotstar-popup-header">Video Quality</div>
-                  <div
-                    className={`hotstar-popup-item ${currentLevel === -1 ? 'active' : ''}`}
-                    onClick={() => handleQualityChange(-1)}
-                  >
-                    <span>Auto (Recommended)</span>
-                    {currentLevel === -1 && <span>✓</span>}
+                {showSpeedMenu && (
+                  <div className="player-menu-popover" style={{ right: 0 }}>
+                    <div style={{ padding: '4px 8px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      Playback Speed
+                    </div>
+                    {SPEED_OPTIONS.map((spd) => (
+                      <button
+                        key={spd}
+                        className={`player-menu-item ${playbackSpeed === spd ? 'active' : ''}`}
+                        onClick={() => handleSpeedSelect(spd)}
+                      >
+                        <span>{spd === 1.0 ? 'Normal (1.0x)' : `${spd}x`}</span>
+                        {playbackSpeed === spd && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>}
+                      </button>
+                    ))}
                   </div>
-                  {levels.map((lvl, idx) => (
-                    <div
-                      key={idx}
-                      className={`hotstar-popup-item ${currentLevel === idx ? 'active' : ''}`}
-                      onClick={() => handleQualityChange(idx)}
-                    >
-                      <span>{lvl.height}p ({Math.round(lvl.bitrate / 1000)} kbps)</span>
-                      {currentLevel === idx && <span>✓</span>}
+                )}
+              </div>
+
+              {/* Quality Menu Toggle */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="player-btn"
+                  onClick={() => {
+                    setShowQualityMenu((prev) => !prev);
+                    setShowSpeedMenu(false);
+                  }}
+                  title="Quality Settings"
+                >
+                  <span className="material-symbols-outlined">settings</span>
+                </button>
+
+                {showQualityMenu && (
+                  <div className="player-menu-popover" style={{ right: 0 }}>
+                    <div style={{ padding: '4px 8px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      Video Quality
                     </div>
-                  ))}
-                </div>
+                    {QUALITY_OPTIONS.map((qual) => (
+                      <button
+                        key={qual}
+                        className={`player-menu-item ${qualityLevel === qual ? 'active' : ''}`}
+                        onClick={() => handleQualitySelect(qual)}
+                      >
+                        <span>{qual === 'Auto' ? 'Auto (Recommended)' : qual}</span>
+                        {qualityLevel === qual && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Picture in Picture */}
+              {document.pictureInPictureEnabled && (
+                <button
+                  className="player-btn"
+                  onClick={() => {
+                    if (document.pictureInPictureElement) {
+                      document.exitPictureInPicture();
+                    } else if (videoRef.current) {
+                      videoRef.current.requestPictureInPicture();
+                    }
+                  }}
+                  title="Picture in Picture"
+                >
+                  <span className="material-symbols-outlined">picture_in_picture_alt</span>
+                </button>
               )}
 
-              <button
-                className="hotstar-pill-btn"
-                onClick={() => {
-                  setShowSpeedMenu(!showSpeedMenu);
-                  setShowQualityMenu(false);
-                }}
-              >
-                ⚡ {playbackSpeed === 1 ? '1.0x' : `${playbackSpeed}x`}
-              </button>
-
-              <button
-                className="hotstar-pill-btn"
-                onClick={() => {
-                  setShowQualityMenu(!showQualityMenu);
-                  setShowSpeedMenu(false);
-                }}
-              >
-                ⚙️ {currentQualityLabel}
-              </button>
-
-              <button className="hotstar-icon-btn" onClick={toggleFullscreen} title="Fullscreen">
-                {isFullscreen ? '↙' : '⤢'}
+              {/* Fullscreen Button */}
+              <button className="player-btn" onClick={toggleFullscreen} title="Fullscreen (F)">
+                <span className="material-symbols-outlined">
+                  {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+                </span>
               </button>
             </div>
           </div>
