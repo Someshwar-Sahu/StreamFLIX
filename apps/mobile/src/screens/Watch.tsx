@@ -162,8 +162,9 @@ export default function Watch({ route, navigation }: any) {
     navigation.navigate('Movies');
   }
 
-  const videoUri = resolveMediaUrl(`/content/${id}/stream/master.m3u8`) || '';
-  const isProcessing = details?.status === 'processing';
+  const movieData = details?.content || details;
+  const videoUri = resolveMediaUrl(`/content/${id}/video`) || '';
+  const isProcessing = movieData?.status === 'processing';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -183,22 +184,22 @@ export default function Watch({ route, navigation }: any) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {isProcessing && (
           <View style={styles.processingCard}>
-            <ActivityIndicator color={DESIGN_TOKENS.colors.accentAmber} />
+            <ActivityIndicator color="#e50914" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.processingTitle}>⏳ Video Transcoding in Progress...</Text>
-              <Text style={styles.processingSub}>Your video will automatically start playing once ready.</Text>
+              <Text style={styles.processingTitle}>⏳ Video Optimizing in Progress...</Text>
+              <Text style={styles.processingSub}>Your video will start playing smoothly.</Text>
             </View>
           </View>
         )}
 
         {loading ? (
-          <ActivityIndicator color={DESIGN_TOKENS.colors.accentAmber} style={{ marginTop: 20 }} />
+          <ActivityIndicator color="#e50914" style={{ marginTop: 20 }} />
         ) : (
-          details && (
+          movieData && (
             <View style={styles.detailsBox}>
-              <Text style={styles.title}>{details.title}</Text>
+              <Text style={styles.title}>{movieData.title || routeTitle || 'StreamFlix Premiere'}</Text>
               <Text style={styles.description}>
-                {details.description || 'Enjoy watching on StreamFlix in HD.'}
+                {movieData.description || 'Enjoy watching on StreamFlix in HD.'}
               </Text>
 
               <View style={styles.actionsRow}>

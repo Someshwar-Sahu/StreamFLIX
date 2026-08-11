@@ -1,16 +1,19 @@
 export const DESIGN_TOKENS = {
   colors: {
-    bgVoid: "#0D1117",
-    bgElevated: "#171B24",
-    bgSurface: "#212631",
-    accentAmber: "#F2A93B",
-    secondaryTeal: "#2EC4B6",
-    textPrimary: "#F5F5F0",
-    textMuted: "#8A8F98",
-    dangerRed: "#E63946",
+    bgVoid: "#0c0f0f",
+    bgElevated: "#121414",
+    bgSurface: "#1a1c1c",
+    bgCard: "#1e2020",
+    accentRed: "#e50914",
+    accentAmber: "#e50914",
+    secondaryTeal: "#e50914",
+    textPrimary: "#ffffff",
+    textMuted: "#a0a4a8",
+    dangerRed: "#e50914",
+    matchGreen: "#46d369",
   },
   fonts: {
-    heading: "Clash Display, sans-serif",
+    heading: "Montserrat, sans-serif",
     body: "Inter, sans-serif",
   },
 } as const;

@@ -76,3 +76,20 @@ export async function resendOtp(email: string): Promise<{ status: string; messag
   const res = await api.post<{ status: string; message: string }>("/auth/resend-otp", formData);
   return res.data;
 }
+
+export async function forgotPassword(email: string): Promise<{ status: string; message: string }> {
+  const formData = new FormData();
+  formData.append("email", email.trim());
+  const res = await api.post<{ status: string; message: string }>("/auth/forgot-password", formData);
+  return res.data;
+}
+
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<{ status: string; message: string }> {
+  const formData = new FormData();
+  formData.append("email", email.trim());
+  formData.append("code", code.trim());
+  formData.append("new_password", newPassword);
+  const res = await api.post<{ status: string; message: string }>("/auth/reset-password", formData);
+  return res.data;
+}
+
