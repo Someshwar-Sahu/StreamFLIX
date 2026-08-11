@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../api/AuthContext';
 import { getCategories } from '../api/catalog';
 import api from '../api/client';
 import AnimatedModal from '../components/AnimatedModal';
 import { useToast } from '../context/ToastContext';
+import { CATEGORY_METADATA } from '../constants/categoryImages';
+import styles from '../styles/Categories.module.css';
 
 export default function Categories() {
   const { role } = useAuth();
@@ -12,25 +14,19 @@ export default function Categories() {
   const { showToast } = useToast();
   const [categories, setCategories] = useState([]);
   const [newCatName, setNewCatName] = useState('');
-  const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  useEffect(() => {
-    if (role !== 'admin' && role !== 'uploader') {
-      navigate('/');
-      return;
-    }
+  const isAdminOrUploader = role === 'admin' || role === 'uploader';
 
+  useEffect(() => {
     fetchCategories();
-  }, [role, navigate]);
+  }, []);
 
   async function fetchCategories() {
     try {
       const catList = await getCategories();
       setCategories(catList || []);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
   }
 
   async function handleAddCategory(e) {
@@ -38,7 +34,7 @@ export default function Categories() {
     if (!newCatName.trim()) return;
     try {
       await api.post('/categories', { name: newCatName.trim() });
-      showToast(`Category "${newCatName.trim()}" added successfully!`, 'success');
+      showToast(`Category "${newCatName.trim()}" added!`, 'success');
       setNewCatName('');
       fetchCategories();
     } catch (err) {
@@ -58,101 +54,162 @@ export default function Categories() {
     }
   }
 
-  if (role !== 'admin' && role !== 'uploader') return null;
-
   return (
-    <div className="page-container" style={{ maxWidth: 880, margin: '0 auto' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
-          Category & Genre Studio
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 4 }}>
-          Manage global classification tags and genres for movies and series.
+    <div className="page-container">
+      {/* Header & Subtitle matching Image 8 */}
+      <div className={styles.header}>
+        <h1 className={styles.title}>Categories</h1>
+        <p className={styles.subtitle}>
+          Explore our vast cinematic universe. Choose a genre to discover your next favorite movie or TV show, carefully curated for an immersive experience.
         </p>
       </div>
 
-      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 36 }}>
-        <input
-          type="text"
-          placeholder="New Category Name (e.g. Cyberpunk, Anime, Docuseries)..."
-          value={newCatName}
-          onChange={(e) => setNewCatName(e.target.value)}
-          style={{
-            flex: 1,
-            height: 48,
-            padding: '0 20px',
-            background: 'var(--bg-surface-low)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 10,
-            color: '#ffffff',
-            fontSize: 14,
-            outline: 'none',
-          }}
-          required
-        />
-        <button
-          type="submit"
-          style={{
-            padding: '0 28px',
-            background: 'var(--primary-red)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 10,
-            fontFamily: 'var(--font-body)',
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px var(--primary-glow)',
-            transition: 'all 0.2s ease',
-          }}
+      {/* Visual Masonry Grid of Genre Cards */}
+      <div className={styles.grid}>
+        {/* Action (Hero Card) */}
+        <Link
+          to="/movies"
+          className={`${styles.card} ${styles.cardFeatured}`}
+          style={{ textDecoration: 'none' }}
         >
-          Add Genre
-        </button>
-      </form>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-        {categories.map((cat) => (
-          <div
-            key={cat.id}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 20px',
-              background: 'var(--bg-surface-low)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 12,
-              transition: 'all 0.25s ease',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--primary-red)', fontSize: 20 }}>
-                label
-              </span>
-              <span style={{ color: '#ffffff', fontWeight: 600, fontSize: 14 }}>{cat.name}</span>
-            </div>
-            <button
-              onClick={() => setDeleteTarget(cat)}
-              style={{
-                background: 'rgba(229, 9, 20, 0.1)',
-                border: '1px solid rgba(229, 9, 20, 0.25)',
-                color: '#ffb4aa',
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              title="Delete Category"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
-            </button>
+          <img src={CATEGORY_METADATA.Action.image} alt="Action" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Action</h2>
+            <p className={styles.cardSub}>{CATEGORY_METADATA.Action.subtitle}</p>
           </div>
-        ))}
+        </Link>
+
+        {/* Sci-Fi */}
+        <Link to="/movies" className={styles.card}>
+          <img src={CATEGORY_METADATA['Sci-Fi'].image} alt="Sci-Fi" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Sci-Fi</h2>
+          </div>
+        </Link>
+
+        {/* Horror */}
+        <Link to="/movies" className={styles.card}>
+          <img src={CATEGORY_METADATA.Horror.image} alt="Horror" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Horror</h2>
+          </div>
+        </Link>
+
+        {/* Comedy */}
+        <Link to="/movies" className={styles.card}>
+          <img src={CATEGORY_METADATA.Comedy.image} alt="Comedy" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Comedy</h2>
+          </div>
+        </Link>
+
+        {/* Anime (Tall Vertical Card) */}
+        <Link to="/movies" className={`${styles.card} ${styles.cardTall}`}>
+          <img src={CATEGORY_METADATA.Anime.image} alt="Anime" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Anime</h2>
+          </div>
+        </Link>
+
+        {/* Drama */}
+        <Link to="/movies" className={styles.card}>
+          <img src={CATEGORY_METADATA.Drama.image} alt="Drama" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Drama</h2>
+          </div>
+        </Link>
+
+        {/* Documentary */}
+        <Link to="/movies" className={styles.card}>
+          <img src={CATEGORY_METADATA.Documentary.image} alt="Documentary" className={styles.cardImg} />
+          <div className={styles.overlay} />
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Documentary</h2>
+          </div>
+        </Link>
       </div>
+
+      {/* Admin / Uploader Category Studio */}
+      {isAdminOrUploader && (
+        <div style={{ marginTop: 40, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 40 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#ffffff', marginBottom: 16 }}>
+            Category Management Studio
+          </h2>
+          <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 28, maxWidth: 640 }}>
+            <input
+              type="text"
+              placeholder="Add new custom category..."
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              style={{
+                flex: 1,
+                height: 46,
+                padding: '0 16px',
+                background: 'var(--bg-surface-low)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                color: '#ffffff',
+                fontSize: 14,
+                outline: 'none',
+              }}
+              required
+            />
+            <button
+              type="submit"
+              style={{
+                padding: '0 24px',
+                background: 'var(--primary-red)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Add Category
+            </button>
+          </form>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {categories.map((c) => (
+              <div
+                key={c.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: 'var(--bg-surface-low)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                }}
+              >
+                <span style={{ color: '#ffffff', fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                <button
+                  onClick={() => setDeleteTarget(c)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ffb4aa',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0,
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <AnimatedModal
         isOpen={!!deleteTarget}

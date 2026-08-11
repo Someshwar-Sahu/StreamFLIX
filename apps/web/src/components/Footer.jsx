@@ -6,41 +6,34 @@ export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.container}>
-        <div className={styles.grid}>
-          <div className={styles.column}>
-            <Link to="/movies" className={styles.link}>Audio Description</Link>
-            <Link to="/settings" className={styles.link}>Help Center</Link>
-            <Link to="/myspace" className={styles.link}>Gift Cards</Link>
-            <Link to="/movies" className={styles.link}>Media Center</Link>
+        <div className={styles.linksGrid}>
+          <div className={styles.linkCol}>
+            <Link to="/movies" className={styles.link}>Browse Movies</Link>
+            <Link to="/series" className={styles.link}>Original Series</Link>
+            <Link to="/categories" className={styles.link}>Explore Genres</Link>
           </div>
-          <div className={styles.column}>
-            <Link to="/settings" className={styles.link}>Investor Relations</Link>
-            <Link to="/settings" className={styles.link}>Jobs</Link>
-            <Link to="/settings" className={styles.link}>Terms of Use</Link>
-            <Link to="/settings" className={styles.link}>Privacy</Link>
+
+          <div className={styles.linkCol}>
+            <Link to="/search" className={styles.link}>Search Titles</Link>
+            <Link to="/myspace" className={styles.link}>My Watchlist</Link>
+            <Link to="/history" className={styles.link}>Watch History</Link>
           </div>
-          <div className={styles.column}>
-            <Link to="/settings" className={styles.link}>Legal Notices</Link>
-            <Link to="/settings" className={styles.link}>Cookie Preferences</Link>
-            <Link to="/settings" className={styles.link}>Corporate Information</Link>
-            <Link to="/settings" className={styles.link}>Contact Us</Link>
+
+          <div className={styles.linkCol}>
+            <span className={styles.staticText}>4K Ultra HD & HDR</span>
+            <span className={styles.staticText}>Dolby Cinema Audio</span>
+            <span className={styles.staticText}>Zero Buffering CDN</span>
           </div>
-          <div className={styles.column}>
-            <div className={styles.badge}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>bolt</span>
-              Ultra HD 4K Streaming
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 8 }}>
-              Experience next-generation cinema with zero buffering and edge-accelerated streaming.
-            </p>
+
+          <div className={styles.linkCol}>
+            <span className={styles.staticText}>StreamFlix Cloud Engine</span>
+            <span className={styles.staticText}>Backblaze B2 Object Storage</span>
+            <span className={styles.staticText}>Render Distributed API</span>
           </div>
         </div>
 
-        <div className={styles.bottom}>
-          <p className={styles.copyright}>© 2026 StreamFlix, Inc. All rights reserved.</p>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Service Status: Optimal</span>
-          </div>
+        <div className={styles.copyright}>
+          © 2026 StreamFlix. Designed & Engineered by <strong style={{ color: '#ffffff' }}>Someshwar Sahu</strong> & <strong style={{ color: '#ffffff' }}>Yashaditya Singh</strong>. All rights reserved.
         </div>
       </div>
     </footer>

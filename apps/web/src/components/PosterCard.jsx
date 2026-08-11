@@ -1,19 +1,25 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { resolveMediaUrl } from "../api/media";
 import styles from "../styles/PosterCard.module.css";
 
 export default function PosterCard({ to, title, posterUrl, status, progressPct, item, badgeText }) {
+  const navigate = useNavigate();
   const finalTitle = title || item?.title || "Untitled";
   const rawPoster = posterUrl || item?.poster_url || item?.thumbnail_url || item?.posterUrl;
   const finalPoster = resolveMediaUrl(rawPoster);
-  const finalStatus = status || item?.status;
-  const itemType = item?.type || "movie";
+  const itemType = item?.type || (item?.seasons ? "series" : "movie");
   const itemId = item?.id || item?.content_id;
-  const finalTo = to || (itemType === "series" ? `/series/${itemId}` : `/watch/${itemId}`);
+  const finalTo = to || (itemType === "series" ? `/series/${itemId}` : `/movie/${itemId}`);
 
-  // Deterministic mock match score (92% - 99%)
-  const matchScore = 90 + ((itemId * 7) % 9);
+  // Deterministic mock match score (94% - 99%)
+  const matchScore = 94 + (((itemId || 1) * 7) % 5);
+
+  const handleQuickPlay = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(itemType === "series" ? `/series/${itemId}` : `/watch/${itemId}`);
+  };
 
   return (
     <Link to={finalTo} className={styles.link}>
@@ -26,17 +32,17 @@ export default function PosterCard({ to, title, posterUrl, status, progressPct, 
           )}
 
           {badgeText && <span className={styles.topBadge}>{badgeText}</span>}
-          <span className={styles.qualityBadge}>HD</span>
+          <span className={styles.qualityBadge}>4K HDR</span>
 
-          {/* Slide-Up Metadata Overlay */}
+          {/* Slide-Up Metadata Overlay matching Stitch Designs */}
           <div className={styles.overlay}>
             <div className={styles.metaRow}>
               <span className={styles.matchScore}>{matchScore}% Match</span>
-              <span className={styles.ratingTag}>PG-13</span>
+              <span className={styles.ratingTag}>TV-MA</span>
             </div>
             <div className={styles.overlayTitle}>{finalTitle}</div>
             <div className={styles.overlayActions}>
-              <div className={styles.playCircleBtn} title="Play">
+              <div className={styles.playCircleBtn} onClick={handleQuickPlay} title="Instant Play">
                 <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}>
                   play_arrow
                 </span>

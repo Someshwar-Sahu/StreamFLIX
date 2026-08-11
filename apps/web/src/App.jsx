@@ -11,6 +11,7 @@ import Watch from './pages/Watch';
 import MySpace from './pages/MySpace';
 import HistoryPage from './pages/HistoryPage';
 import SeriesDetail from './pages/SeriesDetail';
+import MovieDetail from './pages/MovieDetail';
 import Upload from './pages/Upload';
 import Admin from './pages/Admin';
 import WatchlistPage from './pages/WatchlistPage';
@@ -66,6 +67,7 @@ export default function App() {
                 <Route path="/series" element={<ProtectedRoute><SeriesPage /></ProtectedRoute>} />
                 <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
                 <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+                <Route path="/movie/:id" element={<ProtectedRoute><MovieDetail /></ProtectedRoute>} />
                 <Route path="/watch/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
                 <Route path="/series/:id" element={<ProtectedRoute><SeriesDetail /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />

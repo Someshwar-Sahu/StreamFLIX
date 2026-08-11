@@ -100,12 +100,13 @@ export default function Watch() {
 
   const handleDeleteContent = async () => {
     await api.delete(`/content/${id}`);
-    showToast(`Movie "${details?.title}" deleted successfully.`, "info");
+    showToast(`Movie deleted successfully.`, "info");
     navigate('/movies');
   };
 
+  const movieData = details?.content || details;
   const videoSrc = `${API_BASE_URL}/content/${id}/video`;
-  const videoTitle = details?.title || `Watching Title #${id}`;
+  const videoTitle = movieData?.title || 'StreamFlix Premiere';
 
   return (
     <div className="page-container">
@@ -114,18 +115,18 @@ export default function Watch() {
           src={videoSrc}
           title={videoTitle}
           initialTime={details?.resume_progress_seconds}
-          contentDuration={details?.content?.duration || details?.duration_seconds}
+          contentDuration={movieData?.duration || details?.duration_seconds}
           onBackPress={() => navigate(-1)}
           onProgressReport={handleProgressReport}
         />
 
-        {details && (
+        {movieData && (
           <div style={{ marginTop: 32, padding: '0 8px' }}>
             <h1 style={{ fontFamily: 'var(--font-display)', color: '#ffffff', fontSize: '2.2rem', fontWeight: 800, marginBottom: 12, letterSpacing: '-0.02em' }}>
-              {details.title}
+              {movieData.title}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: 24, maxWidth: 800 }}>
-              {details.description || 'Enjoy watching on StreamFlix in HD with zero buffering.'}
+              {movieData.description || 'Enjoy watching on StreamFlix in HD with zero buffering.'}
             </p>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>

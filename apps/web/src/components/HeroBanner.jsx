@@ -7,7 +7,8 @@ export default function HeroBanner({ item }) {
   if (!item) return null;
 
   const backdropUrl = resolveMediaUrl(item.poster_url || item.thumbnail_url);
-  const targetLink = item.type === 'series' ? `/series/${item.id}` : `/watch/${item.id}`;
+  const playLink = item.type === 'series' ? `/series/${item.id}` : `/watch/${item.id}`;
+  const infoLink = item.type === 'series' ? `/series/${item.id}` : `/movie/${item.id}`;
 
   return (
     <div className="hero-banner">
@@ -30,17 +31,36 @@ export default function HeroBanner({ item }) {
         <h1 className="hero-title">{item.title}</h1>
         {item.description && <p className="hero-description">{item.description}</p>}
 
-        <div className="hero-actions">
-          <Link to={targetLink} className="hero-btn hero-btn-primary">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-              play_arrow
+        <div className="hero-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <Link to={playLink} className="hero-btn hero-btn-primary">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                play_arrow
+              </span>
+              Play
+            </Link>
+            <Link to={infoLink} className="hero-btn hero-btn-secondary">
+              <span className="material-symbols-outlined">info</span>
+              More Info
+            </Link>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              opacity: 0.75,
+              userSelect: 'none',
+            }}
+          >
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, letterSpacing: '0.1em', color: '#ffffff' }}>
+              ODYSSEY
             </span>
-            Play Now
-          </Link>
-          <Link to={targetLink} className="hero-btn hero-btn-secondary">
-            <span className="material-symbols-outlined">info</span>
-            More Info
-          </Link>
+            <span style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.08em' }}>
+              4K UHD / HDR • DOLBY CINEMA
+            </span>
+          </div>
         </div>
       </div>
     </div>
