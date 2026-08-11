@@ -21,7 +21,6 @@ export default function ContentRow({ title, items = [], seeAllLink, isProgressRo
     }
   };
 
-  // Deduplicate items & ensure composite unique React key
   const uniqueItems = items.reduce((acc, item, idx) => {
     const itemType = item.type || (item.seasons ? 'series' : 'movie');
     const itemId = item.id || item.content_id || idx;

@@ -1,64 +1,64 @@
-// Curated high-resolution static visual assets for all cinematic genres
 export const CATEGORY_METADATA = {
   Action: {
     name: 'Action',
     subtitle: 'Explosive thrillers & blockbusters',
-    image: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80', // Street race fire & action
+    image: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80',
     mood: 'Adrenaline, Explosive, High-Octane',
   },
   'Sci-Fi': {
     name: 'Sci-Fi',
     subtitle: 'Futuristic worlds & deep space',
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1200&q=80', // Cyberpunk neon city hologram
+    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1200&q=80',
     mood: 'Mind-bending, Futuristic, Cosmic',
   },
   Horror: {
     name: 'Horror',
-    subtitle: 'Supernatural fear & psychological chills',
-    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80', // Gothic haunted castle in moonlight
-    mood: 'Ominous, Dark, Chilling',
+    subtitle: 'Supernatural chills & fear',
+    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80',
+    mood: 'Chilling, Dark, Terrifying',
   },
   Comedy: {
     name: 'Comedy',
-    subtitle: 'Laugh-out-loud hits & stand-up specials',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80', // Vintage spotlight stage microphone
-    mood: 'Witty, Feel-good, Hilarious',
+    subtitle: 'Laugh-out-loud hits',
+    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+    mood: 'Witty, Hilarious, Lighthearted',
   },
   Anime: {
     name: 'Anime',
-    subtitle: 'Epic Japanese animation & fantasy sagas',
-    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80', // Japanese neon cyberpunk / anime battle
-    mood: 'Action-packed, Vibrant, Fantastical',
+    subtitle: 'Epic fantasy & mecha sagas',
+    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80',
+    mood: 'Epic, Stylized, Imaginative',
   },
   Drama: {
     name: 'Drama',
-    subtitle: 'Compelling stories & emotional journeys',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80', // Moody cinematic portrait
-    mood: 'Emotional, Intimate, Thought-provoking',
+    subtitle: 'Compelling emotional stories',
+    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80',
+    mood: 'Gripping, Intense, Emotional',
   },
   Documentary: {
     name: 'Documentary',
-    subtitle: 'Real stories, history & nature discoveries',
-    image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80', // Lush amazon wild nature aerial
-    mood: 'Fascinating, Real, Eye-opening',
-  },
-  Thriller: {
-    name: 'Thriller',
-    subtitle: 'Edge-of-your-seat suspense & mysteries',
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
-    mood: 'Suspenseful, Gritty, Unpredictable',
+    subtitle: 'Real discoveries & nature',
+    image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
+    mood: 'Eye-opening, Inspiring, Deep',
   },
 };
 
 export function getCategoryVisual(categoryName) {
   if (!categoryName) return CATEGORY_METADATA.Action;
-  const key = Object.keys(CATEGORY_METADATA).find(
-    (k) => k.toLowerCase() === categoryName.toLowerCase()
-  );
-  return CATEGORY_METADATA[key] || {
+  const match = CATEGORY_METADATA[categoryName];
+  if (match) return match;
+
+  const lower = categoryName.toLowerCase();
+  for (const [key, val] of Object.entries(CATEGORY_METADATA)) {
+    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
+      return val;
+    }
+  }
+
+  return {
     name: categoryName,
-    subtitle: `${categoryName} films & series`,
+    subtitle: 'StreamFlix original selection',
     image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
-    mood: 'Exciting, Premium, Cinematic',
+    mood: 'Immersive, Cinematic, Captivating',
   };
 }

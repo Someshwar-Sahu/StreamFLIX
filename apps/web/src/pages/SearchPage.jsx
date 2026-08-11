@@ -11,7 +11,6 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load Top Searches and Recommended items
     getTrending().then((data) => {
       setTopSearches(data.overall || []);
       setRecommended(data.movies || []);

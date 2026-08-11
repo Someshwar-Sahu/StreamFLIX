@@ -12,7 +12,6 @@ export default function PosterCard({ to, title, posterUrl, status, progressPct, 
   const itemId = item?.id || item?.content_id;
   const finalTo = to || (itemType === "series" ? `/series/${itemId}` : `/movie/${itemId}`);
 
-  // Deterministic mock match score (94% - 99%)
   const matchScore = 94 + (((itemId || 1) * 7) % 5);
 
   const handleQuickPlay = (e) => {

@@ -35,10 +35,8 @@ api.interceptors.response.use(
         localStorage.removeItem("token");
         localStorage.removeItem("profile_token");
         
-        // Dispatch custom session expired event
         window.dispatchEvent(new CustomEvent("streamflix:session-expired"));
         
-        // Force redirect to /login
         if (window.location.pathname !== "/login") {
           window.location.href = "/login";
         }

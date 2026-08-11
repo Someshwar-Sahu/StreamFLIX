@@ -70,7 +70,6 @@ export default function MovieDetail() {
     }
   }
 
-  // Format duration (e.g. 135 mins -> 2h 15m)
   const durationSec = movie.duration || 7200;
   const hours = Math.floor(durationSec / 3600);
   const minutes = Math.floor((durationSec % 3600) / 60);

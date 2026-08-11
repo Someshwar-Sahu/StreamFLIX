@@ -12,15 +12,13 @@ export default function Upload() {
   const cancelUploadRef = useRef(null);
   const { showToast } = useToast();
 
-  // Movie state
   const [mTitle, setMTitle] = useState("");
   const [mDesc, setMDesc] = useState("");
   const [mCategoriesList, setMCategoriesList] = useState([]);
   const [mFile, setMFile] = useState(null);
   const [mPoster, setMPoster] = useState(null);
 
-  // Series state
-  const [seriesMode, setSeriesMode] = useState("new"); // "new" | "existing"
+  const [seriesMode, setSeriesMode] = useState("new");
   const [existingSeriesList, setExistingSeriesList] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [seasonsList, setSeasonsList] = useState([]);

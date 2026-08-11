@@ -14,7 +14,6 @@ export default function CustomWebPlayer({
   const hideControlsTimerRef = useRef(null);
   const seekbarRef = useRef(null);
 
-  // Player State
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(initialTime || 0);
   const [duration, setDuration] = useState(contentDuration || 0);
@@ -26,9 +25,8 @@ export default function CustomWebPlayer({
   const [qualityLevel, setQualityLevel] = useState('Auto');
   const [bufferedPercent, setBufferedPercent] = useState(0);
 
-  // Interactive Overlays
-  const [centerPulse, setCenterPulse] = useState(null); // 'play' | 'pause'
-  const [gestureRipple, setGestureRipple] = useState(null); // { type: 'left' | 'right', text: '10s' }
+  const [centerPulse, setCenterPulse] = useState(null);
+  const [gestureRipple, setGestureRipple] = useState(null);
   const [hoverTime, setHoverTime] = useState(null);
   const [hoverPosition, setHoverPosition] = useState(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -37,7 +35,6 @@ export default function CustomWebPlayer({
   const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
   const QUALITY_OPTIONS = ['Auto', '1080p', '720p', '480p'];
 
-  // Resume playback position on initial mount
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -58,26 +55,22 @@ export default function CustomWebPlayer({
     return () => video.removeEventListener('loadedmetadata', handleLoadedMetadata);
   }, [initialTime, contentDuration]);
 
-  // Update Progress & Buffer Tracks
   const handleTimeUpdate = () => {
     const video = videoRef.current;
     if (!video) return;
 
     setCurrentTime(video.currentTime);
 
-    // Calculate buffered range
     if (video.buffered.length > 0 && video.duration > 0) {
       const bufferedEnd = video.buffered.end(video.buffered.length - 1);
       setBufferedPercent((bufferedEnd / video.duration) * 100);
     }
 
-    // Report watch history heartbeat to parent
     if (onProgressReport) {
       onProgressReport(video.currentTime, duration || video.duration);
     }
   };
 
-  // Auto-hide HUD Controls on Inactivity
   const triggerShowControls = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimerRef.current) {
@@ -90,7 +83,6 @@ export default function CustomWebPlayer({
     }, 3200);
   }, [isPlaying, showSpeedMenu, showQualityMenu]);
 
-  // Play / Pause Toggle
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -112,7 +104,6 @@ export default function CustomWebPlayer({
     triggerShowControls();
   }, [triggerShowControls]);
 
-  // Seek relative seconds (10s Rewind / Forward)
   const seekRelative = useCallback((seconds) => {
     const video = videoRef.current;
     if (!video) return;
@@ -130,7 +121,6 @@ export default function CustomWebPlayer({
     triggerShowControls();
   }, [duration, triggerShowControls]);
 
-  // Seekbar Click & Drag Scrub
   const handleSeekClick = (e) => {
     const rect = seekbarRef.current?.getBoundingClientRect();
     if (!rect || !videoRef.current) return;
@@ -145,7 +135,6 @@ export default function CustomWebPlayer({
     triggerShowControls();
   };
 
-  // Hover Tooltip on Seekbar
   const handleSeekHover = (e) => {
     const rect = seekbarRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -158,7 +147,6 @@ export default function CustomWebPlayer({
     setHoverTime(percentage * targetDuration);
   };
 
-  // Volume & Mute Controls
   const handleVolumeChange = (newVol) => {
     const video = videoRef.current;
     if (!video) return;
@@ -185,7 +173,6 @@ export default function CustomWebPlayer({
     triggerShowControls();
   };
 
-  // Speed Change
   const handleSpeedSelect = (spd) => {
     if (videoRef.current) {
       videoRef.current.playbackRate = spd;
@@ -195,14 +182,12 @@ export default function CustomWebPlayer({
     triggerShowControls();
   };
 
-  // Quality Select
   const handleQualitySelect = (qual) => {
     setQualityLevel(qual);
     setShowQualityMenu(false);
     triggerShowControls();
   };
 
-  // Fullscreen Toggle
   const toggleFullscreen = async () => {
     const container = containerRef.current;
     if (!container) return;
@@ -221,10 +206,8 @@ export default function CustomWebPlayer({
     triggerShowControls();
   };
 
-  // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Avoid triggering when user is typing in an input
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
       switch (e.code) {
@@ -268,7 +251,6 @@ export default function CustomWebPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [togglePlay, seekRelative, volume, toggleMute]);
 
-  // Format Seconds to HH:MM:SS / MM:SS
   const formatTime = (secs) => {
     if (!secs || isNaN(secs) || secs < 0) return '00:00';
     const totalSecs = Math.floor(secs);

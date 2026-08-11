@@ -62,7 +62,6 @@ export default function Watch() {
     if (!details) return;
     const oldRating = details.my_rating;
 
-    // Optimistic rating update
     setDetails((prev) => {
       let newLikes = prev.likes || 0;
       let newDislikes = prev.dislikes || 0;
